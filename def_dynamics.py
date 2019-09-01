@@ -11,10 +11,10 @@ Note that this is neither an executable nor the main program. Instead, this is
 where you should tell pahmc_ode_cpu about the details of your dynamical system.
 
 In this file, between each pair of lines that look like
-'#===============type your code below===============
- #=====================end here=====================',
+'#=========================type your code below=========================
+ #===============================end here===============================',
 write down,
-	1) The vector field of your dynamical system;
+	1) The vector field of your dynamical system (without external stimuli);
 	2) Its Jacobian;
 	3) The derivatives with respect to each parameter of the system.
 
@@ -35,11 +35,19 @@ class Dynamics:
 	dynamical system.
 	"""
 
-	def __init__(self, name):
-		"""The name will be the unique identifier to a dynamical system"""
-		self.name = name
+	def __init__(self, name, stimuli):
+		"""
+		This class defines the vector field.
 
-	def field(self, X, par):
+		Inputs
+		------
+		   name: string specifying the name of the dynamics.
+		stimuli: 2D array of external stimuli.
+		"""
+		self.name = name
+		self.stimuli = stimuli
+
+	def field(self, X, par, stimulus):
 		"""
 		This is your vector field.
 
@@ -49,24 +57,23 @@ class Dynamics:
 
 		Inputs
 		------
-		  X: D-by-M numpy array for M > 1. If M == 1, X is a one-dimensional 
-		     (shapeless) numpy array.
-		par: one-dimensional (shapeless) numpy array.
+		       X: D-by-M numpy array for any positive integer M.
+		     par: one-dimensional (shapeless) numpy array.
+		stimulus: D-by-M numpy array for any positive integer M; stimulus is 
+				  a subset of 'self.stimuli'.
 
 		Returns
 		-------
-		vecfield: D-by-M numpy array for any positive integer M.
+		vecfield + stimulus: D-by-M numpy array for any positive integer M. 
+							 Caution: do NOT put external stimuli in vecfield.
 		"""
-		if len(X.shape) == 1:  # if M == 1, X.shape will be equal to D
-			X = X[:, np.newaxis]  # in this case, make X.shape equal to (D, 1)
+		(D, M) = np.shape(X)
+		vecfield = np.zeros((D,M))  # initialize the output (without stimuli)
 
-		vecfield = np.zeros(X.shape)  # initialize the output
-
-		#===============type your code below===============
-		vecfield = (np.roll(X, -1, 0) - np.roll(X, 2, 0)) \
-			* np.roll(X, 1, 0) - X + par[0]
-		#=====================end here=====================
-		return vecfield
+		#=========================type your code below=========================
+		no need to change this line if using 'lib_dynamics'
+		#===============================end here===============================
+		return vecfield + stimulus
 
 	def jacobian(self, X, par):
 		"""
@@ -74,30 +81,20 @@ class Dynamics:
 
 		Inputs
 		------
-		  X: D-by-M numpy array for M > 1. If M == 1, X is a one-dimensional 
-		     (shapeless) numpy array.
+		  X: D-by-M numpy array for any positive integer M.
 		par: one-dimensional (shapeless) numpy array.
 
 		Returns
 		-------
 		jacob: D-by-D-by-M numpy array for any positive integer M.
 		"""
-		if len(X.shape) == 1:  # if M == 1, X.shape will be equal to D
-			X = X[:, np.newaxis]  # in this case, make X.shape equal to (D, 1)
-		shape = X.shape
+		(D, M) = np.shape(X)
+		idenmat = np.identity(D)
+		jacob = np.zeros((D,D,M))  # initialize the output
 
-		idenmat = np.identity(shape[0], dtype='float64')
-		jacob = np.zeros((shape[0],shape[0],shape[1]))  # initialization
-
-		#===============type your code below===============
-		jacob = np.roll(idenmat, -1, 1)[:, :, np.newaxis] \
-				* np.reshape((np.roll(X, -1, 0)-np.roll(X, 2, 0)), 
-					(shape[0],1,shape[1])) \
-				+ (np.roll(idenmat, 1, 1)\
-					-np.roll(idenmat, -2, 1))[:, :, np.newaxis] \
-				* np.reshape(np.roll(X, 1, 0), (shape[0],1,shape[1])) \
-				- idenmat[:, :, np.newaxis]
-		#=====================end here=====================
+		#=========================type your code below=========================
+		no need to change this line if using 'lib_dynamics'
+		#===============================end here===============================
 		return jacob
 
 	def dfield_dpar(self, X, par):
@@ -108,8 +105,7 @@ class Dynamics:
 
 		Inputs
 		------
-		  X: D-by-M numpy array for M > 1. If M == 1, X is a one-dimensional 
-		     (shapeless) numpy array.
+		  X: D-by-M numpy array for any positive integer M.
 		par: one-dimensional (shapeless) numpy array.
 
 		Returns
@@ -118,12 +114,10 @@ class Dynamics:
 				   corresponds to a D-by-M numpy array that contains the 
 				   derivatives with respect to the path X.
 		"""
-		if len(X.shape) == 1:  # if M == 1, X.shape will be equal to D
-			X = X[:, np.newaxis]  # in this case, make X.shape equal to (D, 1)
-		
-		deriv_par = np.zeros(D,M,len(par))
+		(D, M) = np.shape(X)
+		deriv_par = np.zeros((D,M,len(par)))  # initialize the output
 
-		#===============type your code below===============
-		deriv_par[:, :, 0] = np.ones(X.shape)
-		#=====================end here=====================
+		#=========================type your code below=========================
+		no need to change this line if using 'lib_dynamics'
+		#===============================end here===============================
 		return deriv_par
