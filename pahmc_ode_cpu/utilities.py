@@ -16,87 +16,130 @@ class Action:
 	derivatives with respect to the state variables and the parameters.
 	"""
 
-	def __init__(self):
-		"""This class is to be instantiated internally in 'pahmc.py'."""
+	def __init__(self, dyn, Y, dt, D, obsdim, M, Rm):
+		"""
+		This class is to be instantiated internally in 'pahmc.py'.
 
-	def get_fX(self, dyn, dt, X, par):
+		Inputs
+		------
+		   dyn: an object instantiated using 'def_dynamics.Dynamics'.
+		     Y: the training data (a "shorter" version of data_noisy).
+		    dt: discretization interval.
+		     D: model degrees of freedom.
+		obsdim: 1d (shapeless) numpy array of integers.
+		     M: number of time steps actually being used to train the model.
+			Rm: scalar.
+		"""
+		self.dyn = dyn
+		self.Y = Y
+		self.dt = dt
+		self.D = D
+		self.obsdim = obsdim
+		self.M = M
+		self.Rm = Rm
+
+	def get_fX(self, X, par):
 		"""
 		This method calculates the discretized vector field (lowercase f in the
 		paper). The discretization rule is trapezoidal.
 
 		Inputs
 		------
-		dyn: an object instantiated using 'def_dynamics.Dynamics'.
-		 dt: discretization interval.
 		  X: the state variable with shape (D, M).
-		par: the parameters as a Python (3.7 or later) dictionary.
+		par: one-dimensional (shapeless) numpy array.
 
 		Returns
 		-------
-		fX: the discretized vector field with shape (D, M). Each column 
-			corresponds to the vector field at a given time.
+		the discretized vector field with shape (D, M-1). Each column 
+		corresponds to the vector field at a given time.
 		"""
-		fX = X + (dyn.field(np.roll(X, -1, 1), par) + dyn.field(X, par)) \
-				 * dt / 2
+		# get the original vector field
+		F = self.dyn.field(X, par, self.dyn.stimuli)
 
-		return fX
+		return X[:, :-1] + (F[:, 1:] + F[:, :-1]) * self.dt / 2
 
-	def action(self, dyn, X, fX, obsdim, M, Y, Rm, Rf):
+	def action(self, X, fX, Rf):
 		"""
 		This method calculates the action.
 
 		Inputs
 		------
-		   dyn: an object instantiated using 'def_dynamics.Dynamics'.
-		     X: the state variable with shape (D, M).
-		    fX: the discretized vector field with shape (D, M). Each column 
-				corresponds to the vector field at a given time.
-		obsdim: Python list containing the observed dimensions chosen 
-		        from the set {1, ..., D}.
-		     M: number of time steps actually being used to train the 
-		        model.
-		     Y: the training data (a "shorter" version of data_noisy).
-		    Rm: scalar.
-		    Rf: numpy array of length betamax.
+		 X: the state variable with shape (D, M).
+		fX: the discretized vector field with shape (D, M-1). Each column 
+		    corresponds to the vector field at a given time.
+		Rf: numpy array of length betamax.
 
 		Returns
 		-------
 		the action. See the paper for its form.
 		"""
-		measuerr = X[obsdim, :] - Y
-		measuerr = Rm / (2 * M) * np.sum(measuerr*measuerr)
-		modelerr = (np.roll(X, -1, 1) - fX)[:, 0:M-1]
-		modelerr = Rf / (2 * M) * np.sum(modelerr*modelerr)
+		measuerr = X[self.obsdim, :] - self.Y
+		measuerr = self.Rm / (2 * self.M) * np.sum(measuerr*measuerr)
+
+		modelerr = X[:, 1:] - fX
+		modelerr = Rf / (2 * self.M) * np.sum(modelerr*modelerr)
 
 		return measuerr + modelerr
 
-	def dAdX(self, dyn, dt, X, fX, D, obsdim, M, Y, Rm, Rf, scaling):
+	def dAdX(self, X, par, fX, Rf, scaling):
 		"""
 		This method calculates the derivatives of the action with respect to 
 		the path X.
 
 		Inputs
 		------
-			dyn: an object instantiated using 'def_dynamics.Dynamics'.
-			 dt: discretization interval.
 			  X: the state variable with shape (D, M).
-			 fX: the discretized vector field with shape (D, M). Each column 
+			par: one-dimensional (shapeless) numpy array.
+			 fX: the discretized vector field with shape (D, M-1). Each column 
 				 corresponds to the vector field at a given time.
-			  D: model degrees of freedom.
-		 obsdim: Python list containing the observed dimensions chosen 
-		         from the set {1, ..., D}.
-			  M: number of time steps actually being used to train the 
-		         model.
-			  Y: the training data (a "shorter" version of data_noisy).
-			 Rm: scalar.
 			 Rf: numpy array of length betamax.
-		scaling: float or a Python list of length betamax. When a float 
-				 input is given, scaling will be broadcasted into a list 
-				 of length betamax; when a list is given, scaling remains 
-				 itself.
+		scaling: 1d (shapeless) numpy array of floats, with length betamax.
 
 		Returns
 		-------
-		the dirivatives of the action with respect to the path.
+		D-by-M numpy array that contains the dirivatives of the action with 
+		respect to the path X.
 		"""
-		a
+		idenmat = np.identity(self.D)[:, :, np.newaxis]
+
+		J = self.dyn.jacobian(X, par)  # get the D-by-D-by-M Jacobian
+		
+		part1 = np.zeros((self.D,self.M))
+		part1[self.obsdim, :] = self.Rm / self.M * (X[self.obsdim, :] - self.Y)
+
+		kernel = np.reshape(X[:, 1:]-fX, (self.D,1,self.M-1))
+
+		part2 = np.zeros((self.D,self.M))
+		part2[:, 1:] \
+		  = Rf / self.M * np.sum(kernel*(idenmat-self.dt/2*J[:, :, 1:]), 0)
+
+		part3 = np.zeros((self.D,self.M))
+		part3[:, :-1] \
+		  = - Rf / self.M * np.sum(kernel*(idenmat+self.dt/2*J[:, :, :-1]), 0)
+
+		return scaling * (part1 + part2 + part3)
+
+	def dAdpar(self, X, par, fX, Rf, scaling):
+		"""
+		This method calculates the derivatives of the action with respect to 
+		the parameters 'par'.
+
+		Inputs
+		------
+			  X: the state variable with shape (D, M).
+			par: one-dimensional (shapeless) numpy array.
+			 fX: the discretized vector field with shape (D, M-1). Each column 
+				 corresponds to the vector field at a given time.
+			 Rf: numpy array of length betamax.
+		scaling: 1d (shapeless) numpy array of floats, with length betamax.
+
+		Returns
+		-------
+		one-dimensional (shapeless) numpy array of length len(par).
+		"""
+		G = self.dyn.dfield_dpar(X, par)  # get the D-by-M-by-len(par) array
+
+		kernel = (X[:, 1:] - fX)[:, :, np.newaxis] \
+				 * self.dt / 2 * (G[:, :-1, :] + G[:, 1:, :])
+
+		return scaling * (- Rf / self.M * np.sum(kernel, axis=(0,1)))

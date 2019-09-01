@@ -18,9 +18,9 @@ class Data:
 	"""
 
 	def __init__(self):
-		"""The name of the dynamics is included below in 'dynamics'."""
+		"""The name of the dynamics is included below in 'dyn'."""
 
-	def generate(self, dynamics, D, length, dt, noise, parameters, x0):
+	def generate(self, dyn, D, length, dt, noise, parameters, x0):
 		"""
 		This method first searches for an existing data file by looking for a
 		data filename that matches the name of the user-defined dynamics. If 
@@ -32,7 +32,7 @@ class Data:
 
 		Inputs
 		------
-		  dynamics: an object instantiated using 'def_dynamics.Dynamics'.
+		       dyn: the dynamics.
 		         D: model degrees of freedom.
 		    length: number of discrete time steps of the generated data.
 		        dt: discretization interval.
@@ -47,27 +47,24 @@ class Data:
 		"""
 		print('\nGenerating data... ', end='')
 
-		self.name = dynamics.name
-		self.D = D
-		self.length = length
-		self.dt = dt
-		self.noise = noise
-		self.parameters = parameters
+		if np.shape(parameters) == ():
+			parameters = np.array([parameters])
 
 		filepath = Path.cwd() / 'user_data'
 
-		if (filepath / f'{self.name}.npz').exists():  # if a matching is found
-			noisyfile = np.load(filepath/f'{self.name}.npz', allow_pickle=True)
+		if (filepath / f'{dyn.name}.npz').exists():  # if a matching is found
+			noisyfile = np.load(filepath/f'{dyn.name}.npz')
 
 			if (np.shape(noisyfile['data']) == (D, length)) \
 			and (noisyfile['dt'] == dt) \
 			and (noisyfile['noise'] == noise) \
-			and (noisyfile['parameters'].item() == parameters):
+			and np.array_equal(noisyfile['parameters'], parameters) \
+			and np.array_equal(noisyfile['stimuli'], dyn.stimuli[:, length:]):
 				data_noisy = noisyfile['data']
 				noisyfile.close()
 
-				print('Successful (data with the same specs already existed).')
-				return data_noisy
+				print('successful (data with the same specs already exist).\n')
+				return data_noisy, dyn.stimuli[:, length:]
 
 		# for all other cases
 		rawdata = np.zeros((D,2*length))
@@ -75,41 +72,54 @@ class Data:
 		
 		for k in range(2*length-1):
 			# Newton-Raphson's initial guess using the Euler method
-			x_start = rawdata[:, k] \
-					  + dt * dynamics.field(rawdata[:, k], parameters)[:, 0]
+			x_start \
+			  = rawdata[:, [k]] + dt * dyn.field(rawdata[:, [k]], parameters, 
+			  									 dyn.stimuli[:, [k]])
 
 			# first iteration of Newton-Raphson for the trapezoidal rule
-			g_x = dt / 2 * (dynamics.field(x_start, parameters)[:, 0] \
-				  + dynamics.field(rawdata[:, k], parameters)[:, 0]) \
-				  + rawdata[:, k] - x_start
-			J = dt / 2 * dynamics.jacobian(x_start, parameters)[:, :, 0] \
+			g_x = dt / 2 * (dyn.field(x_start, parameters, 
+			      			   		  dyn.stimuli[:, [k+1]])[:, 0] \
+				     		+ dyn.field(rawdata[:, [k]], parameters, 
+				     			 		dyn.stimuli[:, [k]])[:, 0]) \
+				  + rawdata[:, k] - x_start[:, 0]
+			J = dt / 2 * dyn.jacobian(x_start, parameters)[:, :, 0] \
 			    - np.identity(D)
 
-			x_change = np.linalg.solve(J, g_x)
+			x_change = np.linalg.solve(J, g_x)[:, np.newaxis]
 			x_new = x_start - x_change
 			x_start = x_new
 
 			# iterate until the correction reaches tolerance level
-			while sum(abs(x_change)) > 1e-14:
-				g_x = dt / 2 * (dynamics.field(x_start, parameters)[:, 0] \
-				  	  + dynamics.field(rawdata[:, k], parameters)[:, 0]) \
-				  	  + rawdata[:, k] - x_start
-				J = dt / 2 * dynamics.jacobian(x_start, parameters)[:, :, 0] \
+			while np.sum(abs(x_change)) > 1e-14:
+				g_x = dt / 2 * (dyn.field(x_start, parameters, 
+										  dyn.stimuli[:, [k+1]])[:, 0] \
+				  	     		+ dyn.field(rawdata[:, [k]], parameters, 
+				  	     					dyn.stimuli[:, [k]])[:, 0]) \
+				  	  + rawdata[:, k] - x_start[:, 0]
+				J = dt / 2 * dyn.jacobian(x_start, parameters)[:, :, 0] \
 			    	- np.identity(D)
 
-				x_change = np.linalg.solve(J, g_x)
+				x_change = np.linalg.solve(J, g_x)[:, np.newaxis]
 				x_new = x_start - x_change
 				x_start = x_new
 
-			rawdata[:, k+1] = x_new  # final value
+			rawdata[:, [k+1]] = x_new  # final value
 		
 		data_noiseless = rawdata[:, length:]  # burn the first half generated
-		np.savez(filepath/f'{self.name}_noiseless',
-			data=data_noiseless, dt=dt, noise=0, parameters=parameters)
+		np.savez(filepath/f'{dyn.name}_noiseless', 
+				 data=data_noiseless, 
+				 dt=dt, 
+				 noise=0, 
+				 parameters=parameters, 
+				 stimuli=dyn.stimuli[:, length:])
 
 		data_noisy = data_noiseless + np.random.normal(0, noise, (D,length))
-		np.savez(filepath/f'{self.name}',
-			data=data_noisy, dt=dt, noise=noise, parameters=parameters)
+		np.savez(filepath/f'{dyn.name}', 
+				 data=data_noisy, 
+				 dt=dt, 
+				 noise=noise, 
+				 parameters=parameters, 
+				 stimuli=dyn.stimuli[:, length:])
 
-		print('Successful.')
-		return data_noisy
+		print('successful.\n')
+		return data_noisy, dyn.stimuli[:, length:]
