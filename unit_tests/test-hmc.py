@@ -74,11 +74,11 @@ x0[0] = 0.01
 
 """Configure the inputs and the stimuli."""
 config = Configure(name, 
-				   D, M, obsdim, dt, 
-				   Rf0, alpha, betamax, 
-				   n_iter, epsilon, S, mass, scaling, 
-				   soft_dynrange, par_start, 
-				   length, noise, par_true, x0)
+                   D, M, obsdim, dt, 
+                   Rf0, alpha, betamax, 
+                   n_iter, epsilon, S, mass, scaling, 
+                   soft_dynrange, par_start, 
+                   length, noise, par_true, x0)
 
 config.check_all()
 
@@ -94,10 +94,10 @@ stimuli = config.get_stimuli()
 
 """Get the dynamics object."""
 try:
-	dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
+    dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
 except:
-	import def_dynamics
-	dyn = def_dynamics.Dynamics(name, stimuli)
+    import def_dynamics
+    dyn = def_dynamics.Dynamics(name, stimuli)
 
 
 """Generate twin-experiment data."""
@@ -115,10 +115,10 @@ t0 = time.perf_counter()
 job = Core(dyn, Y, dt, D, obsdim, M)
 
 cProfile.run('acceptance, action, action_meanpath, burn, ' \
-			 + 'FE_meanpath, ME_meanpath, par_history, par_mean, ' \
-			 + 'Rf, Rm, X_init, X_mean, Xfinal_history ' \
-  			 + '= job.pa(Rf0, alpha, betamax, n_iter, ' \
-  			 + 'epsilon, S, mass, scaling, soft_dynrange, par_start)')
+             + 'FE_meanpath, ME_meanpath, par_history, par_mean, ' \
+             + 'Rf, Rm, X_init, X_mean, Xfinal_history ' \
+             + '= job.pa(Rf0, alpha, betamax, n_iter, ' \
+             + 'epsilon, S, mass, scaling, soft_dynrange, par_start)')
 
 print(f'Total time = {time.perf_counter()-t0:.2f} seconds.')
 
@@ -130,3 +130,4 @@ ax.loglog(action[0, :], color=textblue, lw=1.5)
 ax.set_xlim(1, n_iter+1)
 ax.set_xlabel('iteration')
 ax.set_ylabel('action')
+

@@ -67,11 +67,11 @@ x0[0] = 0.01
 
 """Configuration for the inputs and the stimuli."""
 config = Configure(name, 
-				   D, M, obsdim, dt, 
-				   Rf0, alpha, betamax, 
-				   n_iter, epsilon, S, mass, scaling, 
-				   soft_dynrange, par_start, 
-				   length, noise, par_true, x0)
+                   D, M, obsdim, dt, 
+                   Rf0, alpha, betamax, 
+                   n_iter, epsilon, S, mass, scaling, 
+                   soft_dynrange, par_start, 
+                   length, noise, par_true, x0)
 
 config.check_all()
 
@@ -105,3 +105,4 @@ assert type(par_true) == type(np.array(file['par_true'], dtype='float64'))
 assert type(x0) == type(np.array(file['x0'], dtype='float64'))
 
 stimuli = config.get_stimuli()
+

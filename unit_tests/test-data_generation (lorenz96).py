@@ -40,8 +40,8 @@ data_noisy, stimuli \
   = Data().generate(dyn, D, length, dt, noise, parameters, x0)
 
 matlabfile = np.load(Path.cwd()
-					 /'user_data'
-					 /'test-lorenz96_noiseless (matlab).npz')
+                     /'user_data'
+                     /'test-lorenz96_noiseless (matlab).npz')
 data_matlab = matlabfile['data']
 matlabfile.close()
 
@@ -50,7 +50,7 @@ data_noiseless = noiselessfile['data']
 noiselessfile.close()
 
 print(f'\nChi-squared = {np.sum((data_noisy-data_noiseless)**2)}' \
-	  + f' ({D*length*noise**2} expected).')
+      + f' ({D*length*noise**2} expected).')
 
 fig, ax = plt.subplots(figsize=(8,4.5))
 textred = (202/255, 51/255, 0)
@@ -69,3 +69,4 @@ ax.set_xticks(np.linspace(0, 25, 11))
 ax.set_xlabel('Time ($\Delta t = 0.025$s)')
 ax.set_ylabel('$x_1(t)$', rotation='vertical')
 ax.set_title('Comparison')
+
