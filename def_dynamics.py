@@ -14,7 +14,7 @@ In this file, between each pair of lines that look like
 '#=========================type your code below=========================
  #===============================end here===============================',
 write down,
-	1) The vector field of your dynamical system (without external stimuli);
+	1) The vector field of your dynamical system including external stimuli;
 	2) Its Jacobian;
 	3) The derivatives with respect to each parameter of the system.
 
@@ -64,16 +64,16 @@ class Dynamics:
 
 		Returns
 		-------
-		vecfield + stimulus: D-by-M numpy array for any positive integer M. 
-							 Caution: do NOT put external stimuli in vecfield.
+		vecfield: D-by-M numpy array for any positive integer M. 
+				  Caution: make sure to include external stimulus, if any.
 		"""
 		(D, M) = np.shape(X)
-		vecfield = np.zeros((D,M))  # initialize the output (without stimuli)
+		vecfield = np.zeros((D,M))  # initialize the output (with stimulus)
 
 		#=========================type your code below=========================
 		no need to change this line if using 'lib_dynamics'
 		#===============================end here===============================
-		return vecfield + stimulus
+		return vecfield
 
 	def jacobian(self, X, par):
 		"""
