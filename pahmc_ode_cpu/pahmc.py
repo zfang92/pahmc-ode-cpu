@@ -16,273 +16,274 @@ from pahmc_ode_cpu.utilities import Action
 
 
 class Core:
-	"""
-	Below is an implementation of the Precision Annealing Hamiltonian Monte 
-	Carlo methods. HMC is called from 'pahmc'. Note that functions to evaluate 
-	the action, A(X), and its derivatives are in a different class.
-	"""
+    """
+    Below is an implementation of the Precision Annealing Hamiltonian Monte 
+    Carlo methods. HMC is called from 'pahmc'. Note that functions to evaluate 
+    the action, A(X), and its derivatives are in a different class.
+    """
 
-	def __init__(self, dyn, Y, dt, D, obsdim, M, Rm=1.0):
-		"""
-		This class is to be instantiated in 'main.py'.
+    def __init__(self, dyn, Y, dt, D, obsdim, M, Rm=1.0):
+        """
+        This class is to be instantiated in 'main.py'.
 
-		Inputs
-		------
-		   dyn: an object instantiated using 'def_dynamics.Dynamics'.
-		     Y: the training data.
-		    dt: discretization interval.
-		     D: model degrees of freedom.
-		obsdim: 1d (shapeless) numpy array of integers.
-		     M: number of time steps actually being used to train the model.
-		    Rm: scalar.
-		"""
-		self.dyn = dyn
-		self.Y = Y
-		self.dt = dt
-		self.D = D
-		self.obsdim = obsdim
-		self.M = M
-		self.Rm = Rm
+        Inputs
+        ------
+           dyn: an object instantiated using 'def_dynamics.Dynamics'.
+             Y: the training data.
+            dt: discretization interval.
+             D: model degrees of freedom.
+        obsdim: 1d (shapeless) numpy array of integers.
+             M: number of time steps actually being used to train the model.
+            Rm: scalar.
+        """
+        self.dyn = dyn
+        self.Y = Y
+        self.dt = dt
+        self.D = D
+        self.obsdim = obsdim
+        self.M = M
+        self.Rm = Rm
 
-	def pa(self, Rf0, alpha, betamax, 
-		   n_iter, epsilon, S, mass, scaling, 
-		   soft_dynrange, par_start, burn=0.5):
-		"""
-		This method does Precision Annealing using Hamiltonian Monte Carlo as
-		a sampler/optimizer.
+    def pa(self, Rf0, alpha, betamax, 
+           n_iter, epsilon, S, mass, scaling, 
+           soft_dynrange, par_start, burn=0.5):
+        """
+        This method does Precision Annealing using Hamiltonian Monte Carlo as
+        a sampler/optimizer.
 
-		Inputs
-		------
-		          Rf0: the starting Rf for precision annealing.
-		        alpha: Rf = Rf0 * (alpha ** np.arange(betamax)).
-		      betamax: maximum beta value.
-		       n_iter: 1d (shapeless) numpy array of integers, with length 
-		       		   betamax.
-		      epsilon: 1d (shapeless) numpy array of floats, with length 
-		       		   betamax.
-		            S: 1d (shapeless) numpy array of integers, with length 
-		       		   betamax.
-		         mass: betamax-by-3 numpy array of floats.
-		      scaling: 1d (shapeless) numpy array of floats, with length 
-		       		   betamax.
-		soft_dynrange: D-by-2 numpy array of floats.
-			par_start: 1d (shapeless) numpy array.
-			     burn: proportion of HMC samples thrown away in each beta.
+        Inputs
+        ------
+                  Rf0: the starting Rf for precision annealing.
+                alpha: Rf = Rf0 * (alpha ** np.arange(betamax)).
+              betamax: maximum beta value.
+               n_iter: 1d (shapeless) numpy array of integers, with length 
+                       betamax.
+              epsilon: 1d (shapeless) numpy array of floats, with length 
+                       betamax.
+                    S: 1d (shapeless) numpy array of integers, with length 
+                       betamax.
+                 mass: betamax-by-3 numpy array of floats.
+              scaling: 1d (shapeless) numpy array of floats, with length 
+                       betamax.
+        soft_dynrange: D-by-2 numpy array of floats.
+            par_start: 1d (shapeless) numpy array.
+                 burn: proportion of HMC samples thrown away in each beta.
 
-		Returns:
-		--------
-		     acceptance: numpy array of length betamax.
-		         action: 2D numpy array.
-		action_meanpath: numpy array of length betamax.
-		           burn: proportion of HMC samples thrown away in each beta.
-			FE_meanpath: numpy array of length betamax.
-			ME_meanpath: numpy array of length betamax.
-			par_history: 3D numpy array.
-			   par_mean: 2D numpy array.
-					 Rf: numpy array of length betamax.
-					 Rm: scalar.
-				 X_init: betamax-by-D-by-M numpy array.
-				 X_mean: betamax-by-D-by-M numpy array.
-		 Xfinal_history: 3D numpy array.
-		"""
-		# instantiate the object that evaluates action and its derivatives
-		self.A = Action(self.dyn, 
-						self.Y, self.dt, self.D, self.obsdim, self.M, self.Rm)
+        Returns:
+        --------
+             acceptance: numpy array of length betamax.
+                 action: 2D numpy array.
+        action_meanpath: numpy array of length betamax.
+                   burn: proportion of HMC samples thrown away in each beta.
+            FE_meanpath: numpy array of length betamax.
+            ME_meanpath: numpy array of length betamax.
+            par_history: 3D numpy array.
+               par_mean: 2D numpy array.
+                     Rf: numpy array of length betamax.
+                     Rm: scalar.
+                 X_init: betamax-by-D-by-M numpy array.
+                 X_mean: betamax-by-D-by-M numpy array.
+         Xfinal_history: 3D numpy array.
+        """
+        # instantiate the object that evaluates action and its derivatives
+        self.A = Action(self.dyn, 
+                        self.Y, self.dt, self.D, self.obsdim, self.M, self.Rm)
 
-		Rf = Rf0 * (alpha ** np.arange(betamax))  # get the Rf ladder
+        Rf = Rf0 * (alpha ** np.arange(betamax))  # get the Rf ladder
 
-		# prepare the attributes which will be accessed by method 'hmc' below
-		self.Rf = Rf
-		self.epsilon = epsilon
-		self.S = S
-		self.mass = mass
-		self.scaling = scaling
-		self.unobsdim = np.setdiff1d(np.arange(self.D), self.obsdim)
+        # prepare the attributes which will be accessed by method 'hmc' below
+        self.Rf = Rf
+        self.epsilon = epsilon
+        self.S = S
+        self.mass = mass
+        self.scaling = scaling
+        self.unobsdim = np.setdiff1d(np.arange(self.D), self.obsdim)
 
-		# similarly, prepare some frequently accessed variables for 'hmc'
-		self.mass_X = np.zeros((betamax,self.D,self.M))
-		self.mass_X_sqrt = np.zeros((betamax,self.D,self.M))
-		self.mass_par = np.zeros((betamax,len(par_start)))
-		self.mass_par_sqrt = np.zeros((betamax,len(par_start)))
-		for beta in range(betamax):
-			self.mass_X[beta, self.obsdim, :] = mass[beta, 0]
-			self.mass_X[beta, self.unobsdim, :] = mass[beta, 1]
-			self.mass_X_sqrt[beta, self.obsdim, :] = np.sqrt(2*mass[beta, 0])
-			self.mass_X_sqrt[beta, self.unobsdim, :] = np.sqrt(2*mass[beta, 1])
-			self.mass_par[beta, :] = mass[beta, 2]
-			self.mass_par_sqrt[beta, :] = np.sqrt(2*mass[beta, 2])
+        # similarly, prepare some frequently accessed variables for 'hmc'
+        self.mass_X = np.zeros((betamax,self.D,self.M))
+        self.mass_X_sqrt = np.zeros((betamax,self.D,self.M))
+        self.mass_par = np.zeros((betamax,len(par_start)))
+        self.mass_par_sqrt = np.zeros((betamax,len(par_start)))
+        for beta in range(betamax):
+            self.mass_X[beta, self.obsdim, :] = mass[beta, 0]
+            self.mass_X[beta, self.unobsdim, :] = mass[beta, 1]
+            self.mass_X_sqrt[beta, self.obsdim, :] = np.sqrt(2*mass[beta, 0])
+            self.mass_X_sqrt[beta, self.unobsdim, :] = np.sqrt(2*mass[beta, 1])
+            self.mass_par[beta, :] = mass[beta, 2]
+            self.mass_par_sqrt[beta, :] = np.sqrt(2*mass[beta, 2])
 
-		# initialize the outputs
-		acceptance = np.zeros(betamax)
-		action = np.zeros((betamax,np.max(n_iter)+1))
-		action_meanpath = np.zeros(betamax)
-		FE_meanpath = np.zeros(betamax)
-		ME_meanpath = np.zeros(betamax)
-		par_history = np.zeros((betamax,np.max(n_iter)+1,len(par_start)))
-		par_mean = np.zeros((betamax,len(par_start)))
-		X_init = np.zeros((betamax,self.D,self.M))
-		X_mean = np.zeros((betamax,self.D,self.M))
-		Xfinal_history = np.zeros((betamax,np.max(n_iter)+1,self.D))
+        # initialize the outputs
+        acceptance = np.zeros(betamax)
+        action = np.zeros((betamax,np.max(n_iter)+1))
+        action_meanpath = np.zeros(betamax)
+        FE_meanpath = np.zeros(betamax)
+        ME_meanpath = np.zeros(betamax)
+        par_history = np.zeros((betamax,np.max(n_iter)+1,len(par_start)))
+        par_mean = np.zeros((betamax,len(par_start)))
+        X_init = np.zeros((betamax,self.D,self.M))
+        X_mean = np.zeros((betamax,self.D,self.M))
+        Xfinal_history = np.zeros((betamax,np.max(n_iter)+1,self.D))
 
-		# perform dynamical initialization
-		X_init[0, :, 0] = np.random.uniform(soft_dynrange[:, 0], 
-											soft_dynrange[:, 1], (self.D,))
-		X_init[0, self.obsdim, 0] = self.Y[:, 0]
-		for m in range(self.M-1):  # second-order Runge-Kutta
-			F = self.dt / 2 * self.dyn.field(X_init[0][:, [m]], par_start, 
-											 self.dyn.stimuli[:, [m]])
-			X_init[0][:, [m+1]] \
-			  = X_init[0][:, [m]] \
-				+ self.dt * self.dyn.field(X_init[0][:, [m]]+F, par_start, 
-										   self.dyn.stimuli[:, [m]])
-			X_init[0, self.obsdim, m+1] = self.Y[:, m+1]
+        # perform dynamical initialization
+        X_init[0, :, 0] = np.random.uniform(soft_dynrange[:, 0], 
+                                            soft_dynrange[:, 1], (self.D,))
+        X_init[0, self.obsdim, 0] = self.Y[:, 0]
+        for m in range(self.M-1):  # second-order Runge-Kutta
+            F = self.dt / 2 * self.dyn.field(X_init[0][:, [m]], par_start, 
+                                             self.dyn.stimuli[:, [m]])
+            X_init[0][:, [m+1]] \
+              = X_init[0][:, [m]] \
+                + self.dt * self.dyn.field(X_init[0][:, [m]]+F, par_start, 
+                                           self.dyn.stimuli[:, [m]])
+            X_init[0, self.obsdim, m+1] = self.Y[:, m+1]
 
-		# receive the very first parameters from the user
-		par_history[0, 0, :] = par_start
+        # receive the very first parameters from the user
+        par_history[0, 0, :] = par_start
 
-		# perform precision annealing Hamiltonian Monte Carlo
-		for beta in range(betamax):
-			# kickstart
-			fX = self.A.get_fX(X_init[beta, :, :], par_history[beta, 0, :])
-			action[beta, 0] \
-			  = self.A.action(X_init[beta, :, :], fX, self.Rf[beta])
-			Xfinal_history[beta, 0, :] = X_init[beta, :, -1]
+        # perform precision annealing Hamiltonian Monte Carlo
+        for beta in range(betamax):
+            # kickstart
+            fX = self.A.get_fX(X_init[beta, :, :], par_history[beta, 0, :])
+            action[beta, 0] \
+              = self.A.action(X_init[beta, :, :], fX, self.Rf[beta])
+            Xfinal_history[beta, 0, :] = X_init[beta, :, -1]
 
-			# set starting points for current beta
-			X0 = X_init[beta, :, :]
-			par0 = par_history[beta, 0, :]
+            # set starting points for current beta
+            X0 = X_init[beta, :, :]
+            par0 = par_history[beta, 0, :]
 
-			# Hamiltonian Monte Carlo
-			t0 = time.perf_counter()
-			print(f'Performing calculations for beta = {beta}... ', end='')
-			for n in range(1, n_iter[beta]+1):
-				# HMC kernel
-				X, par, action[beta, n], accept \
-				  = self.hmc(X0, par0, action[beta, n-1], beta)
-				X0 = X
-				par0 = par
+            # Hamiltonian Monte Carlo
+            t0 = time.perf_counter()
+            print(f'Performing calculations for beta = {beta}... ', end='')
+            for n in range(1, n_iter[beta]+1):
+                # HMC kernel
+                X, par, action[beta, n], accept \
+                  = self.hmc(X0, par0, action[beta, n-1], beta)
+                X0 = X
+                par0 = par
 
-				# keep the results
-				acceptance[beta] = acceptance[beta] + accept
-				if n > burn * n_iter[beta]:
-					X_mean[beta, :, :] = X_mean[beta, :, :] + X
-					par_mean[beta, :] = par_mean[beta, :] + par
-				Xfinal_history[beta, n, :] = X[:, -1]
-				par_history[beta, n, :] = par
-			print(f'finished in {time.perf_counter()-t0:.2f} seconds;')
+                # keep the results
+                acceptance[beta] = acceptance[beta] + accept
+                if n > burn * n_iter[beta]:
+                    X_mean[beta, :, :] = X_mean[beta, :, :] + X
+                    par_mean[beta, :] = par_mean[beta, :] + par
+                Xfinal_history[beta, n, :] = X[:, -1]
+                par_history[beta, n, :] = par
+            print(f'finished in {time.perf_counter()-t0:.2f} seconds;')
 
-			# finalize the acceptance rate and the mean path for current beta
-			acceptance[beta] = acceptance[beta] / n_iter[beta]
-			X_mean[beta, :, :] \
-			  = X_mean[beta, :, :] / np.ceil((1-burn)*n_iter[beta])
-			par_mean[beta, :] \
-			  = par_mean[beta, :] / np.ceil((1-burn)*n_iter[beta])
+            # finalize the acceptance rate and the mean path for current beta
+            acceptance[beta] = acceptance[beta] / n_iter[beta]
+            X_mean[beta, :, :] \
+              = X_mean[beta, :, :] / np.ceil((1-burn)*n_iter[beta])
+            par_mean[beta, :] \
+              = par_mean[beta, :] / np.ceil((1-burn)*n_iter[beta])
 
-			# calculate the action, measurement and model errors
-			fX = self.A.get_fX(X_mean[beta, :, :], par_mean[beta, :])
-			action_meanpath[beta] \
-			  = self.A.action(X_mean[beta, :, :], fX, self.Rf[beta])
-			ME_meanpath[beta] \
-			  = self.Rm / (2 * self.M) \
-			    * np.sum((X_mean[beta, self.obsdim, :]-self.Y)**2)
-			FE_meanpath[beta] \
-			  = self.Rf[beta] / (2 * self.M) \
-			    * np.sum((X_mean[beta, :, 1:]-fX)**2)
+            # calculate the action, measurement and model errors
+            fX = self.A.get_fX(X_mean[beta, :, :], par_mean[beta, :])
+            action_meanpath[beta] \
+              = self.A.action(X_mean[beta, :, :], fX, self.Rf[beta])
+            ME_meanpath[beta] \
+              = self.Rm / (2 * self.M) \
+                * np.sum((X_mean[beta, self.obsdim, :]-self.Y)**2)
+            FE_meanpath[beta] \
+              = self.Rf[beta] / (2 * self.M) \
+                * np.sum((X_mean[beta, :, 1:]-fX)**2)
 
-			# set starting points for the next beta
-			if beta != betamax - 1:
-				X_init[beta+1, :, :] = X_mean[beta, :, :]
-				par_history[beta+1, 0, :] = par_mean[beta, :]
+            # set starting points for the next beta
+            if beta != betamax - 1:
+                X_init[beta+1, :, :] = X_mean[beta, :, :]
+                par_history[beta+1, 0, :] = par_mean[beta, :]
 
-			# print the current action_meanpath and FE_meanpath
-			print(f'     action (mean path) = {action_meanpath[beta]};')
-			print(f'model error (mean path) = {FE_meanpath[beta]}.\n')
+            # print the current action_meanpath and FE_meanpath
+            print(f'     action (mean path) = {action_meanpath[beta]};')
+            print(f'model error (mean path) = {FE_meanpath[beta]}.\n')
 
-		return acceptance, action, action_meanpath, burn, \
-			   FE_meanpath, ME_meanpath, par_history, par_mean, \
-			   Rf, self.Rm, X_init, X_mean, Xfinal_history
+        return acceptance, action, action_meanpath, burn, \
+               FE_meanpath, ME_meanpath, par_history, par_mean, \
+               Rf, self.Rm, X_init, X_mean, Xfinal_history
 
-	def hmc(self, X0, par0, action0, beta):
-		"""
-		This method generates a single HMC proposal.
+    def hmc(self, X0, par0, action0, beta):
+        """
+        This method generates a single HMC proposal.
 
-		Inputs
-		------
-		     X0: the current path on the Markov chain.
-		   par0: the current parameter set on the Markov chain.
-	    action0: the current action evaluated from X0 and par0.
-	       beta: current beta value.
+        Inputs
+        ------
+             X0: the current path on the Markov chain.
+           par0: the current parameter set on the Markov chain.
+        action0: the current action evaluated from X0 and par0.
+           beta: current beta value.
 
-		Returns
-		-------
-		     X: the output HMC proposal for the path (either a new one or X0 in 
-		     	the case of a rejection).
-		   par: the output HMC proposal for the parameters (either a new one or
-		   		par0 in the case of a rejection).
-		action: the output action value evaluated from X and par.
-		accept: a flag indicating whether X and par are new or old.
-		"""
-		X = X0
-		par = par0
+        Returns
+        -------
+             X: the output HMC proposal for the path (either a new one or X0 in 
+                the case of a rejection).
+           par: the output HMC proposal for the parameters (either a new one or
+                par0 in the case of a rejection).
+        action: the output action value evaluated from X and par.
+        accept: a flag indicating whether X and par are new or old.
+        """
+        X = X0
+        par = par0
 
-		# generate initial momenta
-		pX0 = np.zeros((self.D,self.M))
-		pX0[self.obsdim, :] = \
-		  np.random.normal(0, np.sqrt(self.mass[beta, 0]), 
-		    			   (len(self.obsdim),self.M))
-		pX0[self.unobsdim, :] = \
-		  np.random.normal(0, np.sqrt(self.mass[beta, 1]), 
-		    			   (self.D-len(self.obsdim),self.M))
-		ppar0 = np.random.normal(0, np.sqrt(self.mass[beta, 2]), len(par))
+        # generate initial momenta
+        pX0 = np.zeros((self.D,self.M))
+        pX0[self.obsdim, :] = \
+          np.random.normal(0, np.sqrt(self.mass[beta, 0]), 
+                           (len(self.obsdim),self.M))
+        pX0[self.unobsdim, :] = \
+          np.random.normal(0, np.sqrt(self.mass[beta, 1]), 
+                           (self.D-len(self.obsdim),self.M))
+        ppar0 = np.random.normal(0, np.sqrt(self.mass[beta, 2]), len(par))
 
-		# half step for the momenta
-		fX = self.A.get_fX(X, par)
-		pX = pX0 - self.epsilon[beta] / 2 \
-		           * self.A.dAdX(X, par, fX, self.Rf[beta], self.scaling[beta])
-		ppar = ppar0 \
-		       - self.epsilon[beta] / 2 \
-		         * self.A.dAdpar(X, par, fX, self.Rf[beta], self.scaling[beta])
+        # half step for the momenta
+        fX = self.A.get_fX(X, par)
+        pX = pX0 - self.epsilon[beta] / 2 \
+                   * self.A.dAdX(X, par, fX, self.Rf[beta], self.scaling[beta])
+        ppar = ppar0 \
+               - self.epsilon[beta] / 2 \
+                 * self.A.dAdpar(X, par, fX, self.Rf[beta], self.scaling[beta])
 
-		# simulate Hamiltonian dynamics
-		for i in range(self.S[beta]):
-			# full step for the path and parameters
-			X = X + self.epsilon[beta] * pX / self.mass_X[beta, :, :]
-			par = par + self.epsilon[beta] * ppar / self.mass_par[beta, :]
+        # simulate Hamiltonian dynamics
+        for i in range(self.S[beta]):
+            # full step for the path and parameters
+            X = X + self.epsilon[beta] * pX / self.mass_X[beta, :, :]
+            par = par + self.epsilon[beta] * ppar / self.mass_par[beta, :]
 
-			# full step for the momenta except at the end of trajectory
-			fX = self.A.get_fX(X, par)
-			if i != self.S[beta] - 1:
-				pX = pX - self.epsilon[beta] \
-					      * self.A.dAdX(X, par, fX, self.Rf[beta], 
-					      	            self.scaling[beta])
-				ppar = ppar - self.epsilon[beta] \
-					          * self.A.dAdpar(X, par, fX, self.Rf[beta], 
-					      	                  self.scaling[beta])
+            # full step for the momenta except at the end of trajectory
+            fX = self.A.get_fX(X, par)
+            if i != self.S[beta] - 1:
+                pX = pX - self.epsilon[beta] \
+                          * self.A.dAdX(X, par, fX, self.Rf[beta], 
+                                        self.scaling[beta])
+                ppar = ppar - self.epsilon[beta] \
+                              * self.A.dAdpar(X, par, fX, self.Rf[beta], 
+                                              self.scaling[beta])
 
-		# half step for the momenta to conclude the simulation
-		pX = pX - self.epsilon[beta] / 2 \
-				  * self.A.dAdX(X, par, fX, self.Rf[beta], self.scaling[beta])
-		ppar = ppar \
-			   - self.epsilon[beta] / 2 \
-			     * self.A.dAdpar(X, par, fX, self.Rf[beta], self.scaling[beta])
+        # half step for the momenta to conclude the simulation
+        pX = pX - self.epsilon[beta] / 2 \
+                  * self.A.dAdX(X, par, fX, self.Rf[beta], self.scaling[beta])
+        ppar = ppar \
+               - self.epsilon[beta] / 2 \
+                 * self.A.dAdpar(X, par, fX, self.Rf[beta], self.scaling[beta])
 
-		# calculate candidate action from X and par
-		action_cand = self.A.action(X, fX, self.Rf[beta])
+        # calculate candidate action from X and par
+        action_cand = self.A.action(X, fX, self.Rf[beta])
 
-		# Metropolis acceptance/rejection rule
-		if np.random.rand() \
-		   < np.exp(self.scaling[beta]*action0
-					+np.sum((pX0/self.mass_X_sqrt[beta, :, :])**2)
-					+np.sum((ppar0/self.mass_par_sqrt[beta, :])**2)
-					-self.scaling[beta]*action_cand
-					-np.sum((pX/self.mass_X_sqrt[beta, :, :])**2)
-					-np.sum((ppar/self.mass_par_sqrt[beta, :])**2)):
-			action = action_cand
-			accept = 1
-		else:
-			X = X0
-			par = par0
-			action = action0
-			accept = 0
+        # Metropolis acceptance/rejection rule
+        if np.random.rand() \
+           < np.exp(self.scaling[beta]*action0
+                    +np.sum((pX0/self.mass_X_sqrt[beta, :, :])**2)
+                    +np.sum((ppar0/self.mass_par_sqrt[beta, :])**2)
+                    -self.scaling[beta]*action_cand
+                    -np.sum((pX/self.mass_X_sqrt[beta, :, :])**2)
+                    -np.sum((ppar/self.mass_par_sqrt[beta, :])**2)):
+            action = action_cand
+            accept = 1
+        else:
+            X = X0
+            par = par0
+            action = action0
+            accept = 0
 
-		return X, par, action, accept
+        return X, par, action, accept
+
