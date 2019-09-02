@@ -5,17 +5,17 @@
 This is the main executable of pahmc_ode_cpu and should be the point of entry
 at which all the necessary information is provided. In particular, the user 
 is assumed to have the following:
-	1) The dynamical system. If calling one of the built-in examples, the name
-	of the dynamics must have a match in 'lib_dynamics.py'; if builing from 
-	scratch, 'def_dynamics.py' must be ready at this point.
-	2) The data. If performing twin-experiments, the specs should be given but 
-	a data file is not required; if working with real data, the data should be 
-	prepared according to the user manual.
-	3) If external stimuli are needed, a .npy file containing the time series; 
-	4) Configuration of the code, including the hyper-parameters for PAHMC. 
-	Refer to the manual for the shape and type requirements. Also note that a 
-	lot of them can take either a single or an array/list of values. See user 
-	manual for details.
+    1) The dynamical system. If calling one of the built-in examples, the name
+    of the dynamics must have a match in 'lib_dynamics.py'; if builing from 
+    scratch, 'def_dynamics.py' must be ready at this point.
+    2) The data. If performing twin-experiments, the specs should be given but 
+    a data file is not required; if working with real data, the data should be 
+    prepared according to the user manual.
+    3) If external stimuli are needed, a .npy file containing the time series; 
+    4) Configuration of the code, including the hyper-parameters for PAHMC. 
+    Refer to the manual for the shape and type requirements. Also note that a 
+    lot of them can take either a single or an array/list of values. See user 
+    manual for details.
 
 It is suggested that the user keep a lookup table for the model paramters to 
 make it easier to preserve order when working on the above steps.
@@ -83,11 +83,11 @@ x0[0] = 0.01
 
 """Configure the inputs and the stimuli."""
 config = Configure(name, 
-				   D, M, obsdim, dt, 
-				   Rf0, alpha, betamax, 
-				   n_iter, epsilon, S, mass, scaling, 
-				   soft_dynrange, par_start, 
-				   length, noise, par_true, x0)
+                   D, M, obsdim, dt, 
+                   Rf0, alpha, betamax, 
+                   n_iter, epsilon, S, mass, scaling, 
+                   soft_dynrange, par_start, 
+                   length, noise, par_true, x0)
 
 config.check_all()
 
@@ -103,10 +103,10 @@ stimuli = config.get_stimuli()
 
 """Get the dynamics object."""
 try:
-	dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
+    dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
 except:
-	import def_dynamics
-	dyn = def_dynamics.Dynamics(name, stimuli)
+    import def_dynamics
+    dyn = def_dynamics.Dynamics(name, stimuli)
 
 
 """Generate twin-experiment data."""
@@ -127,7 +127,7 @@ acceptance, action, action_meanpath, burn, \
 FE_meanpath, ME_meanpath, par_history, par_mean, \
 Rf, Rm, X_init, X_mean, Xfinal_history \
   = job.pa(Rf0, alpha, betamax, n_iter,
-  		   epsilon, S, mass, scaling, soft_dynrange, par_start)
+           epsilon, S, mass, scaling, soft_dynrange, par_start)
 
 print(f'Total time = {time.perf_counter()-t0:.2f} seconds.')
 
