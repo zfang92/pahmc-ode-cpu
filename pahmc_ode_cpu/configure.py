@@ -139,14 +139,14 @@ class Configure:
                 (type(self.par_start) == tuple \
                  and len(np.shape(self.par_start)) == 1)), \
             "'par_start' must be either a plain float or a one-dimensional" \
-            + "tuple that contains only plain floats."
+            + " tuple that contains only plain floats."
 
         assert (type(self.length) == int \
                 and self.length > self.M), \
             "'length' must be a plain integer greater than 'M'."
 
-        assert type(self.noise) == float, \
-            "'noise' must be a plain float."
+        assert np.shape(self.noise) == (self.D, ), \
+            "'noise' must be a one-dimensional array with length 'D'."
 
         assert ((type(self.par_true) == float \
                  and np.shape(self.par_true) == ()) \
@@ -154,7 +154,7 @@ class Configure:
                 (type(self.par_true) == tuple \
                  and len(np.shape(self.par_true)) == 1)), \
             "'par_true' must be either a plain float or a one-dimensional" \
-            + "tuple that contains only plain floats."
+            + " tuple that contains only plain floats."
 
         assert np.shape(self.x0) == (self.D, ), \
             "'x0' must be a one-dimensional array with length 'D'."
@@ -207,7 +207,7 @@ class Configure:
 
         self.length = int(self.length)
 
-        self.noise = float(self.noise)
+        self.noise = np.array(self.noise, dtype='float64')
 
         if np.shape(self.par_true) == ():
             self.par_true = np.array([self.par_true], dtype='float64')

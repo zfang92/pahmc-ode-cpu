@@ -36,10 +36,9 @@ class Data:
                  D: model degrees of freedom.
             length: number of discrete time steps of the generated data.
                 dt: discretization interval.
-             noise: standard deviation of the added Gaussian noise.
+             noise: 1d (shapeless) numpy array for the standard deviations.
         parameters: true parameters used to generate the data.
-                x0: one-dimensional (shapeless) numpy array of the initial 
-                    condition.
+                x0: 1d (shapeless) numpy array of the initial condition.
 
         Returns
         -------
@@ -57,7 +56,7 @@ class Data:
 
             if (np.shape(noisyfile['data']) == (D, length)) \
             and (noisyfile['dt'] == dt) \
-            and (noisyfile['noise'] == noise) \
+            and np.array_equal(noisyfile['noise'], noise) \
             and np.array_equal(noisyfile['parameters'], parameters) \
             and np.array_equal(noisyfile['stimuli'], dyn.stimuli[:, length:]):
                 data_noisy = noisyfile['data']
@@ -90,7 +89,7 @@ class Data:
             x_start = x_new
 
             # iterate until the correction reaches tolerance level
-            while np.sum(abs(x_change)) > 1e-14:
+            while np.sum(abs(x_change)) > 1e-13:
                 g_x = dt / 2 * (dyn.field(x_start, parameters, 
                                           dyn.stimuli[:, [k+1]])[:, 0] \
                                 + dyn.field(rawdata[:, [k]], parameters, 
@@ -109,11 +108,14 @@ class Data:
         np.savez(filepath/f'{dyn.name}_noiseless', 
                  data=data_noiseless, 
                  dt=dt, 
-                 noise=0, 
+                 noise=np.zeros(D), 
                  parameters=parameters, 
                  stimuli=dyn.stimuli[:, length:])
 
-        data_noisy = data_noiseless + np.random.normal(0, noise, (D,length))
+        data_noisy = np.zeros((D,length))
+        for a in range(D):
+            data_noisy[a, :] \
+              = data_noiseless[a, :] + np.random.normal(0, noise[a], length)
         np.savez(filepath/f'{dyn.name}', 
                  data=data_noisy, 
                  dt=dt, 
