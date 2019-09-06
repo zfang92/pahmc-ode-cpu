@@ -55,8 +55,8 @@ par_start = 8.0
 """Sepcs for the twin-experiment data"""
 # set the length of the data (must be greater than M defined above)
 length = 1000
-# set the noise level (standard deviation) in the data
-noise = 0.4
+# set the noise levels (standard deviations) in the data for each dimension
+noise = 0.4 * np.ones(D)
 # set the true parameters (caution: order must be consistent)
 par_true = 8.17
 # set the initial condition for the data generation process
@@ -100,7 +100,7 @@ assert \
   type(soft_dynrange) == type(np.array(file['soft_dynrange'], dtype='float64'))
 assert type(par_start) == type(np.array(file['par_start'], dtype='float64'))
 assert type(length) == type(int(file['length']))
-assert type(noise) == type(float(file['noise']))
+assert type(noise) == type(np.array(file['noise'], dtype='float64'))
 assert type(par_true) == type(np.array(file['par_true'], dtype='float64'))
 assert type(x0) == type(np.array(file['x0'], dtype='float64'))
 

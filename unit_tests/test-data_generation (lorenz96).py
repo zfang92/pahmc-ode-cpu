@@ -24,10 +24,11 @@ name = 'lorenz96'
 D = 20
 length = 1000
 dt = 0.025
-noise = 0.4
+noise = 0.4 * np.ones(D)
 parameters = 8.17
 
-stimuli = np.ones((D,2*length)) * np.arange(2*length) * 1e-9
+# stimuli = np.ones((D,2*length)) * np.arange(2*length) * 1e-9
+stimuli = np.zeros((D,2*length))
 
 x0 = np.ones(D)
 x0[0] = 0.01
@@ -40,7 +41,7 @@ data_noisy, stimuli \
   = Data().generate(dyn, D, length, dt, noise, parameters, x0)
 
 matlabfile = np.load(Path.cwd()
-                     /'user_data'
+                     /'unit_tests'
                      /'test-lorenz96_noiseless (matlab).npz')
 data_matlab = matlabfile['data']
 matlabfile.close()
@@ -49,8 +50,8 @@ noiselessfile = np.load(Path.cwd()/'user_data'/f'{dyn.name}_noiseless.npz')
 data_noiseless = noiselessfile['data']
 noiselessfile.close()
 
-print(f'\nChi-squared = {np.sum((data_noisy-data_noiseless)**2)}' \
-      + f' ({D*length*noise**2} expected).')
+print(f'\nChi-squared = {np.sum((data_noisy-data_noiseless)**2)}'\
+      +f' ({np.sum((noise[:, np.newaxis])**2*np.ones((D,length)))} expected).')
 
 fig, ax = plt.subplots(figsize=(8,4.5))
 textred = (202/255, 51/255, 0)
