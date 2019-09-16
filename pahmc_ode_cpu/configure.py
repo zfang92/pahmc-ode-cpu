@@ -24,7 +24,7 @@ class Configure:
                  Rf0, alpha, betamax, 
                  n_iter, epsilon, S, mass, scaling, 
                  soft_dynrange, par_start, 
-                 length, noise, par_true, x0):
+                 length, noise, par_true, x0, burndata):
         self.name = name
         self.D = D
         self.M = M
@@ -44,6 +44,7 @@ class Configure:
         self.noise = noise
         self.par_true = par_true
         self.x0 = x0
+        self.burndata = burndata
 
     def check_all(self):
         """
@@ -159,6 +160,9 @@ class Configure:
         assert np.shape(self.x0) == (self.D, ), \
             "'x0' must be a one-dimensional array with length 'D'."
 
+        assert type(self.burndata) == bool, \
+            "'burndata' must be a Boolean."
+
     def regulate(self):
         """
         Regulate the type and shape for each input variable.
@@ -216,6 +220,8 @@ class Configure:
 
         self.x0 = np.array(self.x0, dtype='float64')
 
+        self.burndata = bool(self.burndata)
+
         np.savez(Path.cwd()/'user_results'/'config',
                  name=self.name, 
                  D=self.D, 
@@ -235,14 +241,15 @@ class Configure:
                  length=self.length, 
                  noise=self.noise, 
                  par_true=self.par_true, 
-                 x0=self.x0)
+                 x0=self.x0, 
+                 burndata=self.burndata)
 
         return self.name, \
                self.D, self.M, self.obsdim, self.dt, \
                self.Rf0, self.alpha, self.betamax, \
                self.n_iter, self.epsilon, self.S, self.mass, self.scaling, \
                self.soft_dynrange, self.par_start, \
-               self.length, self.noise, self.par_true, self.x0
+               self.length, self.noise, self.par_true, self.x0, self.burndata
 
     def get_stimuli(self):
         """

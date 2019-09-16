@@ -15,6 +15,8 @@ import time
 from pahmc_ode_cpu.utilities import Action
 
 
+np.seterr(over='ignore')
+
 class Core:
     """
     Below is an implementation of the Precision Annealing Hamiltonian Monte 
