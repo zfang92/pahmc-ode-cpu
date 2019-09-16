@@ -4,7 +4,7 @@
 
 This is a unit test. 
 
-To run this unit test, copy this file into its parent directory and execute it.
+To run this unit test, copy this file into its parent directory and run it.
 """
 
 
@@ -62,6 +62,8 @@ par_true = 8.17
 # set the initial condition for the data generation process
 x0 = np.ones(D)
 x0[0] = 0.01
+# set the switch for discarding the first half of the generated data
+burndata = True
 #===============================end here===============================
 
 
@@ -71,7 +73,7 @@ config = Configure(name,
                    Rf0, alpha, betamax, 
                    n_iter, epsilon, S, mass, scaling, 
                    soft_dynrange, par_start, 
-                   length, noise, par_true, x0)
+                   length, noise, par_true, x0, burndata)
 
 config.check_all()
 
@@ -80,7 +82,7 @@ D, M, obsdim, dt, \
 Rf0, alpha, betamax, \
 n_iter, epsilon, S, mass, scaling, \
 soft_dynrange, par_start, \
-length, noise, par_true, x0 = config.regulate()
+length, noise, par_true, x0, burndata = config.regulate()
 
 file = np.load(Path.cwd()/'user_results'/'config.npz')
 assert type(name) == type(str(file['name']))
@@ -103,6 +105,7 @@ assert type(length) == type(int(file['length']))
 assert type(noise) == type(np.array(file['noise'], dtype='float64'))
 assert type(par_true) == type(np.array(file['par_true'], dtype='float64'))
 assert type(x0) == type(np.array(file['x0'], dtype='float64'))
+assert type(burndata) == type(bool(file['burndata']))
 
 stimuli = config.get_stimuli()
 

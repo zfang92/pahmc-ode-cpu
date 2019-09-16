@@ -6,9 +6,10 @@ This is a unit test. If you would like to further develop pahmc_ode_cpu, you
 should visit here frequently. You should also be familiar with the Python (3.7)
 built-in module 'unittest'.
 
-To run this unit test, copy this file into its parent directory and execute it.
+To run this unit test, copy this file into its parent directory and run it.
 """
 
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +26,7 @@ D = 20
 length = 1000
 dt = 0.025
 noise = 0.4 * np.ones(D)
-parameters = 8.17
+par_true = 8.17
 
 # stimuli = np.ones((D,2*length)) * np.arange(2*length) * 1e-9
 stimuli = np.zeros((D,2*length))
@@ -37,19 +38,14 @@ x0[0] = 0.01
 dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
 
 # get (noisy) data from the module being tested
+t0 = time.perf_counter()
 data_noisy, stimuli \
-  = Data().generate(dyn, D, length, dt, noise, parameters, x0)
-
-matlabfile = np.load(Path.cwd()
-                     /'unit_tests'
-                     /'test-lorenz96_noiseless (matlab).npz')
-data_matlab = matlabfile['data']
-matlabfile.close()
+  = Data().generate(dyn, D, length, dt, noise, par_true, x0, True)
+print(f'Time elapsed = {time.perf_counter()-t0:.2f} seconds.')
 
 noiselessfile = np.load(Path.cwd()/'user_data'/f'{dyn.name}_noiseless.npz')
 data_noiseless = noiselessfile['data']
 noiselessfile.close()
-
 print(f'\nChi-squared = {np.sum((data_noisy-data_noiseless)**2)}'\
       +f' ({np.sum((noise[:, np.newaxis])**2*np.ones((D,length)))} expected).')
 
@@ -60,14 +56,12 @@ textblue = (49/255, 99/255, 206/255)
 
 time = np.linspace(0, dt*length, length)
 ax.plot(time, data_noisy[1, :], color=textblue, lw=1.5)
-ax.plot(time, data_matlab[1, :], color=textred, lw=1.5)
 
-ax.legend(['data_noisy','MATLAB'], loc='upper right')
+ax.legend(['data_noisy'], loc='upper right')
 
 ax.set_xlim(0, 25)
 ax.set_xticks(np.linspace(0, 25, 11))
 
 ax.set_xlabel('Time ($\Delta t = 0.025$s)')
 ax.set_ylabel('$x_1(t)$', rotation='vertical')
-ax.set_title('Comparison')
 

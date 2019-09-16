@@ -6,7 +6,7 @@ This is a unit test. If you would like to further develop pahmc_ode_cpu, you
 should visit here frequently. You should also be familiar with the Python (3.7)
 built-in module 'unittest'.
 
-To run this unit test, copy this file into its parent directory and execute it.
+To run this unit test, copy this file into its parent directory and run it.
 """
 
 
@@ -29,14 +29,8 @@ class Test_def_dynamics(unittest.TestCase):
 
         stimuli = np.random.uniform(-1.0, 1.0, (D,M))
 
-        compare = np.zeros((D,M))
-        for m in range(M):
-            compare[0, m] = (X[1, m] - X[D-2, m]) * X[D-1, m] - X[0, m]
-            compare[1, m] = (X[2, m] - X[D-1, m]) * X[0, m] - X[1, m]
-            compare[D-1, m] = (X[0, m] - X[D-3, m]) * X[D-2, m] - X[D-1, m]
-            for a in range(2, D-1):
-                compare[a, m] = (X[a+1, m] - X[a-2, m]) * X[a-1, m] - X[a, m]
-        compare = compare + par[0] + stimuli
+        compare = (np.roll(X, -1, 0) - np.roll(X, 2, 0)) * np.roll(X, 1, 0) \
+                  - X + par[0]
         #===============================end here===============================
         try:
             dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
@@ -64,15 +58,14 @@ class Test_def_dynamics(unittest.TestCase):
 
         stimuli = np.random.uniform(-1.0, 1.0, (D,M))
 
-        compare = np.zeros((D,D,M))
-        for m in range(M):
-            for i in range(1, D+1):
-                for j in range(1, D+1):
-                    compare[i-1, j-1, m] \
-                      = (1 + (i - 2) % D == j) \
-                        * (X[i%D, m] - X[(i-3)%D, m]) \
-                        + ((1 + i % D == j) - (1 + (i - 3) % D == j)) \
-                        * X[(i-2)%D, m] - (i == j)
+        idenmat = np.identity(D)
+
+        compare = np.roll(idenmat, -1, 1)[:, :, np.newaxis] \
+                  * np.reshape((np.roll(X, -1, 0)-np.roll(X, 2, 0)), (D,1,M)) \
+                  + (np.roll(idenmat, 1, 1)\
+                     -np.roll(idenmat, -2, 1))[:, :, np.newaxis] \
+                  * np.reshape(np.roll(X, 1, 0), (D,1,M)) \
+                  - idenmat[:, :, np.newaxis]
         #===============================end here===============================
         try:
             dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)

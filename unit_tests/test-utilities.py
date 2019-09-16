@@ -6,7 +6,7 @@ This is a unit test. If you would like to further develop pahmc_ode_cpu, you
 should visit here frequently. You should also be familiar with the Python (3.7)
 built-in module 'unittest'.
 
-To run this unit test, copy this file into its parent directory and execute it.
+To run this unit test, copy this file into its parent directory and run it.
 """
 
 

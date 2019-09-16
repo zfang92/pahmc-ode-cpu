@@ -6,7 +6,7 @@ This is a unit test. If you would like to further develop pahmc_ode_cpu, you
 should visit here frequently. You should also be familiar with the Python (3.7)
 built-in module 'unittest'.
 
-To run this unit test, copy this file into its parent directory and execute it.
+To run this unit test, copy this file into its parent directory and run it.
 """
 
 
@@ -77,6 +77,8 @@ par_true = (1,
             -55, 30, 1, 5)
 # set the initial condition for the data generation process
 x0 = np.array([-70, 0.1, 0.9, 0.1])
+# set the switch for discarding the first half of the generated data
+burndata = False
 #===============================end here===============================
 
 
@@ -86,7 +88,7 @@ config = Configure(name,
                    Rf0, alpha, betamax, 
                    n_iter, epsilon, S, mass, scaling, 
                    soft_dynrange, par_start, 
-                   length, noise, par_true, x0)
+                   length, noise, par_true, x0, burndata)
 
 config.check_all()
 
@@ -95,7 +97,7 @@ D, M, obsdim, dt, \
 Rf0, alpha, betamax, \
 n_iter, epsilon, S, mass, scaling, \
 soft_dynrange, par_start, \
-length, noise, par_true, x0 = config.regulate()
+length, noise, par_true, x0, burndata = config.regulate()
 
 stimuli = config.get_stimuli()
 
@@ -109,7 +111,8 @@ except:
 
 
 """Generate twin-experiment data."""
-data_noisy, stimuli = Data().generate(dyn, D, length, dt, noise, par_true, x0)
+data_noisy, stimuli \
+  = Data().generate(dyn, D, length, dt, noise, par_true, x0, burndata)
 Y = data_noisy[obsdim, 0:M]
 
 
@@ -157,7 +160,8 @@ np.savez(Path.cwd()/'user_results'/f'{name}_{day}_{i}',
          Rf0=Rf0, alpha=alpha, betamax=betamax, 
          n_iter=n_iter, epsilon=epsilon, S=S, mass=mass, scaling=scaling, 
          soft_dynrange=soft_dynrange, par_start=par_start, 
-         length=length, noise=noise, par_true=par_true, x0=x0, 
+         length=length, 
+         noise=noise, par_true=par_true, x0=x0, burndata=burndata, 
          acceptance=acceptance, 
          action=action, 
          action_meanpath=action_meanpath, 
