@@ -37,57 +37,64 @@ from pahmc_ode_cpu import lib_dynamics
 #=========================type your code below=========================
 """A name for your dynamics."""
 # it will be used to try to find a match in the built-ins
-name = 'nakl'
+name = 'lorenz96'
 
 """Specs for the dynamics."""
 # set the dimension of your dynamics
-D = 4
+D = 20
 # set the length of the observation window
-M = 5000
+M = 200
 # set the observed dimensions (list with smallest possible value 1)
-obsdim = [1]
+obsdim = [1, 4, 7, 9, 11, 13, 16, 19]
 # set the discretization interval
-dt = 0.02
+dt = 0.025
 
 """Specs for precision annealing and HMC."""
 # set the starting Rf value
-Rf0 = 1e6
+Rf0 = 0.1
 # set alpha
-alpha = 1.0
+alpha = 1.8
 # set the total number of beta values
-betamax = 1
+betamax = 25
 # set the number of HMC samples for each beta
-n_iter = 1000
+n_iter = [1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3,  
+          1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 1e3, 
+          1e3, 1e3, 1e4, 1e4, 1e4]
 # set the HMC simulation stepsize for each beta
-epsilon = 1e-2
+epsilon = [1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 
+           1e-3, 1e-3, 1e-3, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 
+           1e-4, 1e-4, 1e-5, 1e-5, 1e-5]
 # set the number of leapfrog steps for an HMC sample for each beta
-S = 150
+S = [150, 150, 150, 150, 150, 50, 50, 50, 50, 50, 
+     50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 
+     50, 50, 50, 50, 50]
 # set the HMC masses for each beta
-mass = (1e0, 1e0, 1e0)
+mass = [(1e0, 1e0, 1e0), (1e0, 1e0, 1e0), (1e0, 1e0, 1e0), (1e0, 1e0, 1e0), 
+        (1e0, 1e0, 1e0), (1e0, 1e0, 1e0), (1e0, 1e0, 1e0), (1e0, 1e0, 1e0), 
+        (1e0, 1e0, 1e0), (1e0, 1e0, 1e0), (1e0, 1e0, 1e0), (1e0, 1e0, 1e0), 
+        (1e0, 1e0, 1e0), (1e1, 1e1, 1e1), (1e1, 1e1, 1e1), (1e1, 1e1, 1e1), 
+        (1e1, 1e1, 1e1), (1e1, 1e1, 1e1), (1e2, 1e2, 1e2), (1e2, 1e2, 1e2), 
+        (1e2, 1e2, 1e2), (1e2, 1e2, 1e2), (1e1, 1e1, 1e1), (1e1, 1e1, 1e1), 
+        (1e1, 1e1, 1e1)]
 # set the HMC scaling parameter for each beta
-scaling = 1.0
+scaling = 1e6
 # set the "soft" dynamical range for initialization purpose
-soft_dynrange = [(-120, 0), (0, 1), (0, 1), (0, 1)]
+soft_dynrange = (-10, 10)
 # set an initial guess for the parameters
-par_start = np.array([0.8,
-                      100, 80, 30, -60, 0.5, -55, 
-                      -50, 20, 0.2, 0.5,
-                      -50, -18, 2, 10,
-                      -60, 35, 2, 8])
+par_start = 8.0
 
 """Sepcs for the twin-experiment data"""
 # set the length of the data (must be greater than M defined above)
-length = int(1000/dt)
+length = 1000
 # set the noise levels (standard deviations) in the data for each dimension
-noise = np.array([1, 0, 0, 0])
+noise = 0.4 * np.ones(D)
 # set the true parameters (caution: order must be consistent)
-par_true = np.array([1, 
-                     120, 50, 20, -77, 0.3, -54.4, 
-                     -40, 15, 0.1, 0.4, 
-                     -60, -15, 1, 7, 
-                     -55, 30, 1, 5])
+par_true = 8.17
 # set the initial condition for the data generation process
-x0 = np.array([-70, 0.1, 0.9, 0.1])
+x0 = np.ones(D)
+x0[0] = 0.01
+# set the switch for discarding the first half of the generated data
+burndata = True
 #===============================end here===============================
 
 
@@ -97,7 +104,7 @@ config = Configure(name,
                    Rf0, alpha, betamax, 
                    n_iter, epsilon, S, mass, scaling, 
                    soft_dynrange, par_start, 
-                   length, noise, par_true, x0)
+                   length, noise, par_true, x0, burndata)
 
 config.check_all()
 
@@ -106,7 +113,7 @@ D, M, obsdim, dt, \
 Rf0, alpha, betamax, \
 n_iter, epsilon, S, mass, scaling, \
 soft_dynrange, par_start, \
-length, noise, par_true, x0 = config.regulate()
+length, noise, par_true, x0, burndata = config.regulate()
 
 stimuli = config.get_stimuli()
 
@@ -120,7 +127,8 @@ except:
 
 
 """Generate twin-experiment data."""
-data_noisy, stimuli = Data().generate(dyn, D, length, dt, noise, par_true, x0)
+data_noisy, stimuli \
+  = Data().generate(dyn, D, length, dt, noise, par_true, x0, burndata)
 Y = data_noisy[obsdim, 0:M]
 
 
@@ -154,7 +162,8 @@ np.savez(Path.cwd()/'user_results'/f'{name}_{day}_{i}',
          Rf0=Rf0, alpha=alpha, betamax=betamax, 
          n_iter=n_iter, epsilon=epsilon, S=S, mass=mass, scaling=scaling, 
          soft_dynrange=soft_dynrange, par_start=par_start, 
-         length=length, noise=noise, par_true=par_true, x0=x0, 
+         length=length, 
+         noise=noise, par_true=par_true, x0=x0, burndata=burndata, 
          acceptance=acceptance, 
          action=action, 
          action_meanpath=action_meanpath, 

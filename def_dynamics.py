@@ -26,9 +26,12 @@ prefer debugging this way.
 """
 
 
+from numba import jitclass, types
 import numpy as np
 
 
+spec = [('name', types.string), ('stimuli', types.float64[:, :])]
+@jitclass(spec)
 class Dynamics:
     """
     This should contain all that pahmc_ode_cpu needs to know about your 

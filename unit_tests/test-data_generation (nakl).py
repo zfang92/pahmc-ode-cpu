@@ -6,7 +6,7 @@ This is a unit test. If you would like to further develop pahmc_ode_cpu, you
 should visit here frequently. You should also be familiar with the Python (3.7)
 built-in module 'unittest'.
 
-To run this unit test, copy this file into its parent directory and execute it.
+To run this unit test, copy this file into its parent directory and run it.
 """
 
 
@@ -33,6 +33,7 @@ par_true = np.array([1,
                      -60, -15, 1, 7, 
                      -55, 30, 1, 5], dtype='float64')
 x0 = np.array([-70, 0.1, 0.9, 0.1], dtype='float64')
+burndata = False
 
 stimuli = np.load(Path.cwd()/'user_data'/f'{name}_stimuli.npy')[:, 0:2*length]
 
@@ -42,7 +43,7 @@ dyn = Dynamics(name, stimuli)
 
 t0 = time.perf_counter()
 data_noisy, stimuli \
-  = Data().generate(dyn, D, length, dt, noise, par_true, x0)
+  = Data().generate(dyn, D, length, dt, noise, par_true, x0, burndata)
 print(f'Time elapsed = {time.perf_counter()-t0:.2f} seconds.')
 
 
