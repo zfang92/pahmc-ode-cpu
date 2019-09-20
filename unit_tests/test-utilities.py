@@ -13,7 +13,7 @@ To run this unit test, copy this file into its parent directory and run it.
 import numpy as np
 import unittest
 
-from pahmc_ode_cpu.utilities import Action  # import module to be tested
+from pahmc_ode_cpu.__init__ import Fetch
 from pahmc_ode_cpu import lib_dynamics
 
 
@@ -21,10 +21,11 @@ class Test_utilities(unittest.TestCase):
     """Inherit the 'TestCase' module and build the test code below."""
     def test_action(self):
         """Unit test code below."""
-        D = 20
-        M = 10
+        D = np.int64(20)
+        M = np.int64(10)
         dt = np.random.rand()
-        obsdim = list(set(np.random.randint(0, D, D//2)))
+        obsdim \
+          = np.array(list(set(np.random.randint(0, D, D//2))), dtype='int64')
         Y = np.random.uniform(-1.0, 1.0, (len(obsdim),M))
         Rm = np.random.rand()
         Rf = np.random.rand() * 1e3
@@ -37,20 +38,23 @@ class Test_utilities(unittest.TestCase):
         par = np.array([8.17])  # this is for Lorenz96
         #===============================end here===============================
         try:
-            dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
+            Fetch.Cls = getattr(lib_dynamics, f'Builtin_{name}')
         except:
             import def_dynamics
-            dyn = def_dynamics.Dynamics(name, stimuli)
+            Fetch.Cls = def_dynamics.Dynamics
+
+        from pahmc_ode_cpu.utilities import Action
+
+        dyn = (Fetch.Cls)(name, stimuli)
 
         A = Action(dyn, Y, dt, D, obsdim, M, Rm)
         fX = A.get_fX(X, par)
 
         compare_meas = 0
         for m in range(M):
-            for a in range(D):
-                if a in obsdim:
-                    compare_meas = compare_meas \
-                                   + (X[a, m] - Y[obsdim.index(a), m]) ** 2
+            for l in range(len(obsdim)):
+                compare_meas = compare_meas \
+                               + (X[obsdim[l], m] - Y[l, m]) ** 2
         compare_meas = Rm / (2 * M) * compare_meas
 
         compare_model = 0
@@ -68,10 +72,11 @@ class Test_utilities(unittest.TestCase):
 
     def test_dAdX(self):
         """Unit test code below."""
-        D = 20
-        M = 10
+        D = np.int64(20)
+        M = np.int64(10)
         dt = np.random.rand()
-        obsdim = list(set(np.random.randint(0, D, D//2)))
+        obsdim \
+          = np.array(list(set(np.random.randint(0, D, D//2))), dtype='int64')
         Y = np.random.uniform(-1.0, 1.0, (len(obsdim),M))
         Rm = np.random.rand()
         Rf = np.random.rand() * 1e3
@@ -85,21 +90,23 @@ class Test_utilities(unittest.TestCase):
         par = np.array([8.17])  # this is for Lorenz96
         #===============================end here===============================
         try:
-            dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
+            Fetch.Cls = getattr(lib_dynamics, f'Builtin_{name}')
         except:
             import def_dynamics
-            dyn = def_dynamics.Dynamics(name, stimuli)
+            Fetch.Cls = def_dynamics.Dynamics
+
+        from pahmc_ode_cpu.utilities import Action
+
+        dyn = (Fetch.Cls)(name, stimuli)
 
         A = Action(dyn, Y, dt, D, obsdim, M, Rm)
         fX = A.get_fX(X, par)
 
         compare_meas = np.zeros((D,M))
-        for a in range(D):
-            for m in range(M):
-                if a in obsdim:
-                    compare_meas[a, m] = compare_meas[a, m] \
-                                         + (X[a, m] - Y[obsdim.index(a), m])
-                compare_meas[a, m] = Rm / M * compare_meas[a, m]
+        for m in range(M):
+            for l in range(len(obsdim)):
+                compare_meas[obsdim[l], m] = X[obsdim[l], m] - Y[l, m]
+        compare_meas = Rm / M * compare_meas
 
         compare_model = np.zeros((D,M))
         for a in range(D):
@@ -143,10 +150,11 @@ class Test_utilities(unittest.TestCase):
 
     def test_dAdpar(self):
         """Unit test code below."""
-        D = 20
-        M = 10
+        D = np.int64(20)
+        M = np.int64(10)
         dt = np.random.rand()
-        obsdim = list(set(np.random.randint(0, D, D//2)))
+        obsdim \
+          = np.array(list(set(np.random.randint(0, D, D//2))), dtype='int64')
         Y = np.random.uniform(-1.0, 1.0, (len(obsdim),M))
         Rm = np.random.rand()
         Rf = np.random.rand() * 1e3
@@ -160,10 +168,14 @@ class Test_utilities(unittest.TestCase):
         par = np.array([8.17])  # this is for Lorenz96
         #===============================end here===============================
         try:
-            dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
+            Fetch.Cls = getattr(lib_dynamics, f'Builtin_{name}')
         except:
             import def_dynamics
-            dyn = def_dynamics.Dynamics(name, stimuli)
+            Fetch.Cls = def_dynamics.Dynamics
+
+        from pahmc_ode_cpu.utilities import Action
+
+        dyn = (Fetch.Cls)(name, stimuli)
 
         A = Action(dyn, Y, dt, D, obsdim, M, Rm)
         fX = A.get_fX(X, par)
@@ -175,7 +187,7 @@ class Test_utilities(unittest.TestCase):
                     compare[b] = compare[b] \
                                  + (X[i, m+1] - fX[i, m]) * dt / 2 \
                                    * (dyn.dfield_dpar(X, par)[i, m, b] \
-                                     + dyn.dfield_dpar(X, par)[i, m+1, b])
+                                      + dyn.dfield_dpar(X, par)[i, m+1, b])
             compare[b] = - Rf / M * compare[b]
 
         compare = scaling * compare

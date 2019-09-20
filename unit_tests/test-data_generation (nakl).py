@@ -17,7 +17,7 @@ import numpy as np
 from pathlib import Path
 
 from pahmc_ode_cpu.data_preparation import Data
-from def_dynamics import Dynamics  # change this later
+from pahmc_ode_cpu import lib_dynamics
 
 
 name = 'nakl'
@@ -39,7 +39,7 @@ stimuli = np.load(Path.cwd()/'user_data'/f'{name}_stimuli.npy')[:, 0:2*length]
 
 
 # generate the data
-dyn = Dynamics(name, stimuli)
+dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
 
 t0 = time.perf_counter()
 data_noisy, stimuli \
