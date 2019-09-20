@@ -3,11 +3,11 @@
 A user-manual is forthcoming. Meanwhile, the docstrings within the code should be self-explanatory enough to get you started.
 
 Requirements:
-1) Python 3.7 or above;
-2) Numpy 1.16 or above;
-3) Numba 0.45 or above;
-4) Matplotlib 3.1 or above;
-5) (Optional) PyTorch 1.2 or above.
+1) Python 3.7+;
+2) Numpy 1.16+;
+3) Numba 0.45+;
+4) Matplotlib 3.1+;
+5) (Optional) PyTorch 1.2+.
 
 Before running the code, the user is assumed to have the following:
 1) A dynamical system. If calling one of the built-in models, the name of the dynamics must have a match in "lib_dynamics.py"; if builing from scratch, 'def_dynamics.py' must be ready to go.
