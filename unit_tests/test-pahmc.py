@@ -123,11 +123,6 @@ cProfile.run('acceptance, action, action_meanpath, burn, ' \
              + '= job.pa(Rf0, alpha, betamax, n_iter, ' \
              + 'epsilon, S, mass, scaling, soft_dynrange, par_start)', 
              'profiling')
-# acceptance, action, action_meanpath, burn, \
-# FE_meanpath, ME_meanpath, par_history, par_mean, \
-# Rf, Rm, X_init, X_mean, Xfinal_history \
-#   = job.pa(Rf0, alpha, betamax, n_iter,
-#            epsilon, S, mass, scaling, soft_dynrange, par_start)
 
 print(f'Total time = {time.perf_counter()-t0:.2f} seconds.')
 
