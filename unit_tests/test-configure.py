@@ -38,7 +38,7 @@ alpha = 1.0
 # set the total number of beta values
 betamax = 3
 # set the number of HMC samples for each beta
-n_iter = [1, 2e3, 4]
+n_iter = [1, 2e3, 4] * np.ones(betamax)
 # set the HMC simulation stepsize for each beta
 epsilon = 1e-2
 # set the number of leapfrog steps for an HMC sample for each beta
@@ -52,7 +52,7 @@ soft_dynrange = (-10, 10)
 # set an initial guess for the parameters
 par_start = 8.0
 
-"""Sepcs for the twin-experiment data"""
+"""Specs for the twin-experiment data"""
 # set the length of the data (must be greater than M defined above)
 length = 1000
 # set the noise levels (standard deviations) in the data for each dimension
@@ -86,26 +86,28 @@ length, noise, par_true, x0, burndata = config.regulate()
 
 file = np.load(Path.cwd()/'user_results'/'config.npz')
 assert type(name) == type(str(file['name']))
-assert type(D) == type(int(file['D']))
-assert type(M) == type(int(file['M']))
-assert type(obsdim) == type(np.array(file['obsdim'], dtype='int32'))
+assert type(D) == type(np.int64(file['D']))
+assert type(M) == type(np.int64(file['M']))
+assert type(obsdim) == type(np.array(file['obsdim'], dtype='int64'))
 assert type(dt) == type(float(file['dt']))
 assert type(Rf0) == type(float(file['Rf0']))
 assert type(alpha) == type(float(file['alpha']))
-assert type(betamax) == type(int(file['betamax']))
-assert type(n_iter) == type(np.array(file['n_iter'], dtype='int32'))
+assert type(betamax) == type(np.int64(file['betamax']))
+assert type(n_iter) == type(np.array(file['n_iter'], dtype='int64'))
 assert type(epsilon) == type(np.array(file['epsilon'], dtype='float64'))
-assert type(S) == type(np.array(file['S'], dtype='int32'))
+assert type(S) == type(np.array(file['S'], dtype='int64'))
 assert type(mass) == type(np.array(file['mass'], dtype='float64'))
 assert type(scaling) == type(np.array(file['scaling'], dtype='float64'))
 assert \
   type(soft_dynrange) == type(np.array(file['soft_dynrange'], dtype='float64'))
 assert type(par_start) == type(np.array(file['par_start'], dtype='float64'))
-assert type(length) == type(int(file['length']))
+assert type(length) == type(np.int64(file['length']))
 assert type(noise) == type(np.array(file['noise'], dtype='float64'))
 assert type(par_true) == type(np.array(file['par_true'], dtype='float64'))
 assert type(x0) == type(np.array(file['x0'], dtype='float64'))
 assert type(burndata) == type(bool(file['burndata']))
 
 stimuli = config.get_stimuli()
+
+print('\nTest finished.')
 

@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 import time
 
 from pahmc_ode_cpu.configure import Configure
-from pahmc_ode_cpu.pahmc import Core
 from pahmc_ode_cpu.data_preparation import Data
+from pahmc_ode_cpu.__init__ import Fetch
 from pahmc_ode_cpu import lib_dynamics
 
 
@@ -96,10 +96,14 @@ stimuli = config.get_stimuli()
 
 """Get the dynamics object."""
 try:
-    dyn = getattr(lib_dynamics, f'Builtin_{name}')(name, stimuli)
+    Fetch.Cls = getattr(lib_dynamics, f'Builtin_{name}')
 except:
     import def_dynamics
-    dyn = def_dynamics.Dynamics(name, stimuli)
+    Fetch.Cls = def_dynamics.Dynamics
+
+from pahmc_ode_cpu.pahmc import Core
+
+dyn = (Fetch.Cls)(name, stimuli)
 
 
 """Generate twin-experiment data."""
