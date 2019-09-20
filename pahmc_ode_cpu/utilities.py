@@ -7,9 +7,23 @@ to be called by method 'hmc' in 'pahmc.py'.
 """
 
 
+from numba import jitclass, types
 import numpy as np
 
+from pahmc_ode_cpu.__init__ import Fetch
 
+
+dyn_spec = types.deferred_type()
+dyn_spec.define(Fetch.Cls.class_type.instance_type)
+
+spec = [('dyn', dyn_spec), 
+        ('Y', types.float64[:, :]), 
+        ('dt', types.float64), 
+        ('D', types.int64), 
+        ('obsdim', types.int64[:]), 
+        ('M', types.int64), 
+        ('Rm', types.float64)]
+@jitclass(spec)
 class Action:
     """
     This class contains useful functions to evaluate the action and its 
@@ -73,7 +87,9 @@ class Action:
         -------
         the action. See the paper for its form.
         """
-        measuerr = X[self.obsdim, :] - self.Y
+        measuerr = np.zeros((len(self.obsdim),self.M))
+        for l in range(len(self.obsdim)):
+            measuerr[l, :] = X[self.obsdim[l], :] - self.Y[l, :]
         measuerr = self.Rm / (2 * self.M) * np.sum(measuerr*measuerr)
 
         modelerr = X[:, 1:] - fX
@@ -100,14 +116,18 @@ class Action:
         D-by-M numpy array that contains the dirivatives of the action with 
         respect to the path X.
         """
-        idenmat = np.identity(self.D)[:, :, np.newaxis]
+        idenmat = np.zeros((self.D,self.D,1))
+        idenmat[:, :, 0] = np.identity(self.D)
 
         J = self.dyn.jacobian(X, par)  # get the D-by-D-by-M Jacobian
         
         part1 = np.zeros((self.D,self.M))
-        part1[self.obsdim, :] = self.Rm / self.M * (X[self.obsdim, :] - self.Y)
+        for l in range(len(self.obsdim)):
+            part1[self.obsdim[l], :] = X[self.obsdim[l], :] - self.Y[l, :]
+        part1 = self.Rm / self.M * part1
 
-        kernel = np.reshape(X[:, 1:]-fX, (self.D,1,self.M-1))
+        kernel = np.zeros((self.D,1,self.M-1))
+        kernel[:, 0, :] = X[:, 1:] - fX
 
         part2 = np.zeros((self.D,self.M))
         part2[:, 1:] \
@@ -139,8 +159,9 @@ class Action:
         """
         G = self.dyn.dfield_dpar(X, par)  # get the D-by-M-by-len(par) array
 
-        kernel = (X[:, 1:] - fX)[:, :, np.newaxis] \
-                 * self.dt / 2 * (G[:, :-1, :] + G[:, 1:, :])
+        kernel = np.zeros((self.D,self.M-1,1))
+        kernel[:, :, 0] = X[:, 1:] - fX
+        kernel = kernel * self.dt / 2 * (G[:, :-1, :] + G[:, 1:, :])
 
-        return scaling * (- Rf / self.M * np.sum(kernel, axis=(0,1)))
+        return scaling * (- Rf / self.M * np.sum(np.sum(kernel, 0), 0))
 

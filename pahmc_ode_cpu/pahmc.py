@@ -9,6 +9,7 @@ state and parameter estimations.
 """
 
 
+from numba import jitclass, types
 import numpy as np
 import time
 
@@ -88,31 +89,25 @@ class Core:
          Xfinal_history: 3D numpy array.
         """
         # instantiate the object that evaluates action and its derivatives
-        self.A = Action(self.dyn, 
-                        self.Y, self.dt, self.D, self.obsdim, self.M, self.Rm)
+        A = Action(self.dyn, self.Y, self.dt, 
+                   self.D, self.obsdim, self.M, self.Rm)
 
-        Rf = Rf0 * (alpha ** np.arange(betamax))  # get the Rf ladder
+        # get the Rf ladder and the unobserved dimensions
+        Rf = Rf0 * (alpha ** np.arange(betamax))
+        unobsdim = np.int64(np.setdiff1d(np.arange(self.D), self.obsdim))
 
-        # prepare the attributes which will be accessed by method 'hmc' below
-        self.Rf = Rf
-        self.epsilon = epsilon
-        self.S = S
-        self.mass = mass
-        self.scaling = scaling
-        self.unobsdim = np.setdiff1d(np.arange(self.D), self.obsdim)
-
-        # similarly, prepare some frequently accessed variables for 'hmc'
-        self.mass_X = np.zeros((betamax,self.D,self.M))
-        self.mass_X_sqrt = np.zeros((betamax,self.D,self.M))
-        self.mass_par = np.zeros((betamax,len(par_start)))
-        self.mass_par_sqrt = np.zeros((betamax,len(par_start)))
+        # prepare some frequently accessed variables for class 'MC'
+        mass_X = np.zeros((betamax,self.D,self.M))
+        mass_X_sqrt = np.zeros((betamax,self.D,self.M))
+        mass_par = np.zeros((betamax,len(par_start)))
+        mass_par_sqrt = np.zeros((betamax,len(par_start)))
         for beta in range(betamax):
-            self.mass_X[beta, self.obsdim, :] = mass[beta, 0]
-            self.mass_X[beta, self.unobsdim, :] = mass[beta, 1]
-            self.mass_X_sqrt[beta, self.obsdim, :] = np.sqrt(2*mass[beta, 0])
-            self.mass_X_sqrt[beta, self.unobsdim, :] = np.sqrt(2*mass[beta, 1])
-            self.mass_par[beta, :] = mass[beta, 2]
-            self.mass_par_sqrt[beta, :] = np.sqrt(2*mass[beta, 2])
+            mass_X[beta, self.obsdim, :] = mass[beta, 0]
+            mass_X[beta, unobsdim, :] = mass[beta, 1]
+            mass_X_sqrt[beta, self.obsdim, :] = np.sqrt(2*mass[beta, 0])
+            mass_X_sqrt[beta, unobsdim, :] = np.sqrt(2*mass[beta, 1])
+            mass_par[beta, :] = mass[beta, 2]
+            mass_par_sqrt[beta, :] = np.sqrt(2*mass[beta, 2])
 
         # initialize the outputs
         acceptance = np.zeros(betamax)
@@ -142,12 +137,16 @@ class Core:
         # receive the very first parameters from the user
         par_history[0, 0, :] = par_start
 
+        # instantiate the MC class
+        mc = MC(self.D, self.obsdim, unobsdim, self.M, 
+                A, Rf, epsilon, S, mass, scaling, 
+                mass_X, mass_X_sqrt, mass_par, mass_par_sqrt)
+
         # perform precision annealing Hamiltonian Monte Carlo
         for beta in range(betamax):
             # kickstart
-            fX = self.A.get_fX(X_init[beta, :, :], par_history[beta, 0, :])
-            action[beta, 0] \
-              = self.A.action(X_init[beta, :, :], fX, self.Rf[beta])
+            fX = A.get_fX(X_init[beta, :, :], par_history[beta, 0, :])
+            action[beta, 0] = A.action(X_init[beta, :, :], fX, Rf[beta])
             Xfinal_history[beta, 0, :] = X_init[beta, :, -1]
 
             # set starting points for current beta
@@ -160,7 +159,7 @@ class Core:
             for n in range(1, n_iter[beta]+1):
                 # HMC kernel
                 X, par, action[beta, n], accept \
-                  = self.hmc(X0, par0, action[beta, n-1], beta)
+                  = mc.hmc(X0, par0, action[beta, n-1], beta)
                 X0 = X
                 par0 = par
 
@@ -181,15 +180,14 @@ class Core:
               = par_mean[beta, :] / np.ceil((1-burn)*n_iter[beta])
 
             # calculate the action, measurement and model errors
-            fX = self.A.get_fX(X_mean[beta, :, :], par_mean[beta, :])
+            fX = A.get_fX(X_mean[beta, :, :], par_mean[beta, :])
             action_meanpath[beta] \
-              = self.A.action(X_mean[beta, :, :], fX, self.Rf[beta])
+              = A.action(X_mean[beta, :, :], fX, Rf[beta])
             ME_meanpath[beta] \
               = self.Rm / (2 * self.M) \
                 * np.sum((X_mean[beta, self.obsdim, :]-self.Y)**2)
             FE_meanpath[beta] \
-              = self.Rf[beta] / (2 * self.M) \
-                * np.sum((X_mean[beta, :, 1:]-fX)**2)
+              = Rf[beta] / (2 * self.M) * np.sum((X_mean[beta, :, 1:]-fX)**2)
 
             # set starting points for the next beta
             if beta != betamax - 1:
@@ -203,6 +201,57 @@ class Core:
         return acceptance, action, action_meanpath, burn, \
                FE_meanpath, ME_meanpath, par_history, par_mean, \
                Rf, self.Rm, X_init, X_mean, Xfinal_history
+
+
+A_spec = types.deferred_type()
+A_spec.define(Action.class_type.instance_type)
+
+spec = [('D', types.int64), 
+        ('obsdim', types.int64[:]), 
+        ('unobsdim', types.int64[:]), 
+        ('M', types.int64), 
+        ('A', A_spec), 
+        ('Rf', types.float64[:]), 
+        ('epsilon', types.float64[:]), 
+        ('S', types.int64[:]), 
+        ('mass', types.float64[:, :]),
+        ('scaling', types.float64[:]), 
+        ('mass_X', types.float64[:, :, :]), 
+        ('mass_X_sqrt', types.float64[:, :, :]), 
+        ('mass_par', types.float64[:, :]), 
+        ('mass_par_sqrt', types.float64[:, :])]
+@jitclass(spec)
+class MC:
+    """
+    This class implements the core steps for proposing one HMC sample. It 
+    stands out from 'Core' in order to take advantage of just-in-time 
+    compilation.
+    """
+
+    def __init__(self, D, obsdim, unobsdim, M, 
+                 A, Rf, epsilon, S, mass, scaling, 
+                 mass_X, mass_X_sqrt, mass_par, mass_par_sqrt):
+        """
+        This class is to be instantiated within 'Core.pa' above.
+
+        Inputs
+        ------
+        Specified above.
+        """
+        self.D = D
+        self.obsdim = obsdim
+        self.unobsdim = unobsdim
+        self.M = M
+        self.A = A
+        self.Rf = Rf
+        self.epsilon = epsilon
+        self.S = S
+        self.mass = mass
+        self.scaling = scaling
+        self.mass_X = mass_X
+        self.mass_X_sqrt = mass_X_sqrt
+        self.mass_par = mass_par
+        self.mass_par_sqrt = mass_par_sqrt
 
     def hmc(self, X0, par0, action0, beta):
         """
@@ -227,15 +276,19 @@ class Core:
         X = X0
         par = par0
 
-        # generate initial momenta
+        # generate the initial momenta
         pX0 = np.zeros((self.D,self.M))
-        pX0[self.obsdim, :] = \
-          np.random.normal(0, np.sqrt(self.mass[beta, 0]), 
-                           (len(self.obsdim),self.M))
-        pX0[self.unobsdim, :] = \
-          np.random.normal(0, np.sqrt(self.mass[beta, 1]), 
-                           (self.D-len(self.obsdim),self.M))
-        ppar0 = np.random.normal(0, np.sqrt(self.mass[beta, 2]), len(par))
+        for a in range(len(self.obsdim)):
+            for m in range(self.M):
+                pX0[self.obsdim[a], m] \
+                  = np.random.normal(0, np.sqrt(self.mass[beta, 0]))
+        for a in range(len(self.unobsdim)):
+            for m in range(self.M):
+                pX0[self.unobsdim[a], m] \
+                  = np.random.normal(0, np.sqrt(self.mass[beta, 1]))
+        ppar0 = np.zeros(len(par))
+        for b in range(len(par)):
+            ppar0[b] = np.random.normal(0, np.sqrt(self.mass[beta, 2]))
 
         # half step for the momenta
         fX = self.A.get_fX(X, par)
