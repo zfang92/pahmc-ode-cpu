@@ -87,60 +87,60 @@ class Configure:
         assert ((type(self.n_iter) == int \
                  and np.shape(self.n_iter) == ()) \
                 or \
-                (type(self.n_iter) == list \
-                 and np.shape(self.n_iter) == (self.betamax, )
-                 and self.n_iter == list(np.floor(self.n_iter)))), \
+                (type(self.n_iter) == np.ndarray \
+                 and np.shape(self.n_iter) == (self.betamax, ) \
+                 and np.array_equal(self.n_iter, np.floor(self.n_iter)))), \
             "'n_iter' must be either a plain integer or a one-dimensional" \
-            + " list of length 'betamax' that contains only plain integers."
+            + " array of length 'betamax' that contains only plain integers."
 
         assert ((type(self.epsilon) == float \
                  and np.shape(self.epsilon) == ()) \
                 or \
-                (type(self.epsilon) == list \
+                (type(self.epsilon) == np.ndarray \
                  and np.shape(self.epsilon) == (self.betamax, ))), \
             "'epsilon' must be either a plain float or a one-dimensional" \
-            + " list of length 'betamax' that contains only plain floats."
+            + " array of length 'betamax' that contains only plain floats."
 
         assert ((type(self.S) == int \
                  and np.shape(self.S) == ()) \
                 or \
-                (type(self.S) == list \
-                 and np.shape(self.S) == (self.betamax, )
-                 and self.S == list(np.floor(self.S)))), \
+                (type(self.S) == np.ndarray \
+                 and np.shape(self.S) == (self.betamax, ) \
+                 and np.array_equal(self.S, np.floor(self.S)))), \
             "'S' must be either a plain integer or a one-dimensional" \
-            + " list of length 'betamax' that contains only plain integers."
+            + " array of length 'betamax' that contains only plain integers."
 
         assert ((type(self.mass) == tuple \
                  and np.shape(self.mass) == (3, )) \
                 or \
-                (type(self.mass) == list \
+                (type(self.mass) == np.ndarray \
                  and np.shape(self.mass) == (self.betamax, 3))), \
-            "'mass' must be either a 3-tuple or a list of length" \
-            + " 'betamax' with each element of the list being a 3-tuple."
+            "'mass' must be either a 3-tuple or an array of shape" \
+            + " (betamax, 3)."
 
         assert ((type(self.scaling) == float \
                  and np.shape(self.scaling) == ()) \
                 or \
-                (type(self.scaling) == list \
+                (type(self.scaling) == np.ndarray \
                  and np.shape(self.scaling) == (self.betamax, ))), \
             "'scaling' must be either a plain float or a one-dimensional" \
-            + " list of length 'betamax' that contains only plain floats."
+            + " array of length 'betamax' that contains only plain floats."
 
         assert ((type(self.soft_dynrange) == tuple \
                  and np.shape(self.soft_dynrange) == (2, )) \
                 or \
-                (type(self.soft_dynrange) == list \
+                (type(self.soft_dynrange) == np.ndarray \
                  and np.shape(self.soft_dynrange) == (self.D, 2))), \
-            "'soft_dynrange' must be either a 2-tuple or a list of length" \
-            + " 'D' with each element of the list being a 2-tuple."
+            "'soft_dynrange' must be either a 2-tuple or an array of shape" \
+            + " (D, 2)."
 
         assert ((type(self.par_start) == float \
                  and np.shape(self.par_start) == ()) \
                 or \
-                (type(self.par_start) == tuple \
+                (type(self.par_start) == np.ndarray \
                  and len(np.shape(self.par_start)) == 1)), \
             "'par_start' must be either a plain float or a one-dimensional" \
-            + " tuple that contains only plain floats."
+            + " array that contains only plain floats."
 
         assert (type(self.length) == int \
                 and self.length > self.M), \
@@ -152,10 +152,10 @@ class Configure:
         assert ((type(self.par_true) == float \
                  and np.shape(self.par_true) == ()) \
                 or \
-                (type(self.par_true) == tuple \
+                (type(self.par_true) == np.ndarray \
                  and len(np.shape(self.par_true)) == 1)), \
             "'par_true' must be either a plain float or a one-dimensional" \
-            + " tuple that contains only plain floats."
+            + " array that contains only plain floats."
 
         assert np.shape(self.x0) == (self.D, ), \
             "'x0' must be a one-dimensional array with length 'D'."
@@ -172,11 +172,11 @@ class Configure:
         """
         self.name = str(self.name)
 
-        self.D = int(self.D)
+        self.D = np.int64(self.D)
 
-        self.M = int(self.M)
+        self.M = np.int64(self.M)
 
-        self.obsdim = np.array(self.obsdim, dtype='int32') - 1
+        self.obsdim = np.array(self.obsdim, dtype='int64') - 1
 
         self.dt = float(self.dt)
 
@@ -184,16 +184,16 @@ class Configure:
 
         self.alpha = float(self.alpha)
 
-        self.betamax = int(self.betamax)
+        self.betamax = np.int64(self.betamax)
 
-        self.n_iter = np.ones(self.betamax, dtype='int32') \
-                      * np.array(self.n_iter, dtype='int32')
+        self.n_iter = np.ones(self.betamax, dtype='int64') \
+                      * np.array(self.n_iter, dtype='int64')
 
         self.epsilon = np.ones(self.betamax, dtype='float64') \
                        * np.array(self.epsilon, dtype='float64')
 
-        self.S = np.ones(self.betamax, dtype='int32') \
-                 * np.array(self.S, dtype='int32')
+        self.S = np.ones(self.betamax, dtype='int64') \
+                 * np.array(self.S, dtype='int64')
 
         self.mass = np.ones((self.betamax,3), dtype='float64') \
                     * np.array(self.mass, dtype='float64')
@@ -209,7 +209,7 @@ class Configure:
         else:
             self.par_start = np.array(self.par_start, dtype='float64')
 
-        self.length = int(self.length)
+        self.length = np.int64(self.length)
 
         self.noise = np.array(self.noise, dtype='float64')
 
