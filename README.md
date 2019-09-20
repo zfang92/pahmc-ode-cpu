@@ -10,7 +10,7 @@ Requirements:
 5) (Optional) PyTorch 1.2 or above.
 
 Before running the code, the user is assumed to have the following:
-1) A dynamical system. If calling one of the built-in models, the name of the dynamics must have a match in 'lib_dynamics.py'; if builing from scratch, 'def_dynamics.py' must be ready to go.
+1) A dynamical system. If calling one of the built-in models, the name of the dynamics must have a match in "lib_dynamics.py"; if builing from scratch, 'def_dynamics.py' must be ready to go.
 
 2) The data. If performing twin-experiments, the specs should be given but a data file is not required; if working with real data, the data should be prepared according to the user manual.
 
