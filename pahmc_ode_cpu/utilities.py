@@ -70,7 +70,12 @@ class Action:
         # get the original vector field
         F = self.dyn.field(X, par, self.dyn.stimuli)
 
-        return X[:, :-1] + (F[:, 1:] + F[:, :-1]) * self.dt / 2
+        fX = np.zeros((self.D,self.M-1))
+        for a in range(self.D):
+            for m in range(self.M-1):
+                fX[a, m] = X[a, m] + self.dt / 2 * (F[a, m+1] + F[a, m])
+
+        return fX
 
     def action(self, X, fX, Rf):
         """
@@ -87,15 +92,19 @@ class Action:
         -------
         the action. See the paper for its form.
         """
-        measuerr = np.zeros((len(self.obsdim),self.M))
-        for l in range(len(self.obsdim)):
-            measuerr[l, :] = X[self.obsdim[l], :] - self.Y[l, :]
-        measuerr = self.Rm / (2 * self.M) * np.sum(measuerr*measuerr)
+        measerr = 0
+        for m in range(self.M):
+            for l in range(len(self.obsdim)):
+                measerr = measerr + (X[self.obsdim[l], m] - self.Y[l, m]) ** 2
+        measerr = self.Rm / (2 * self.M) * measerr
 
-        modelerr = X[:, 1:] - fX
-        modelerr = Rf / (2 * self.M) * np.sum(modelerr*modelerr)
+        modelerr = 0
+        for m in range(self.M-1):
+            for a in range(self.D):
+                modelerr = modelerr + (X[a, m+1] - fX[a, m]) ** 2
+        modelerr = Rf / (2 * self.M) * modelerr
 
-        return measuerr + modelerr
+        return measerr + modelerr
 
     def dAdX(self, X, par, fX, Rf, scaling):
         """
@@ -116,28 +125,48 @@ class Action:
         D-by-M numpy array that contains the dirivatives of the action with 
         respect to the path X.
         """
-        idenmat = np.zeros((self.D,self.D,1))
-        idenmat[:, :, 0] = np.identity(self.D)
-
         J = self.dyn.jacobian(X, par)  # get the D-by-D-by-M Jacobian
         
-        part1 = np.zeros((self.D,self.M))
-        for l in range(len(self.obsdim)):
-            part1[self.obsdim[l], :] = X[self.obsdim[l], :] - self.Y[l, :]
-        part1 = self.Rm / self.M * part1
+        diff = np.zeros((self.D,self.M-1))
+        for a in range(self.D):
+            for m in range(self.M-1):
+                diff[a, m] = X[a, m+1] - fX[a, m]
 
-        kernel = np.zeros((self.D,1,self.M-1))
-        kernel[:, 0, :] = X[:, 1:] - fX
+        part_meas = np.zeros((self.D,self.M))
+        for m in range(self.M):
+            for l in range(len(self.obsdim)):
+                part_meas[self.obsdim[l], m] \
+                  = self.Rm / self.M * (X[self.obsdim[l], m] - self.Y[l, m])
 
-        part2 = np.zeros((self.D,self.M))
-        part2[:, 1:] \
-          = Rf / self.M * np.sum(kernel*(idenmat-self.dt/2*J[:, :, 1:]), 0)
+        part_model = np.zeros((self.D,self.M))
+        for a in range(self.D):
+            # m == 0 corner case
+            for i in range(self.D):
+                part_model[a, 0] = part_model[a, 0] + J[i, a, 0] * diff[i, 0]
+            part_model[a, 0] \
+              = - Rf / self.M * (diff[a, 0] + self.dt / 2 * part_model[a, 0])
+            # m == M-1 corner case
+            for i in range(self.D):
+                part_model[a, -1] = part_model[a, -1] \
+                                    + J[i, a, -1] * diff[i, -1]
+            part_model[a, -1] \
+              = Rf / self.M * (diff[a, -1] - self.dt / 2 * part_model[a, -1])
+            # m == {1, ..., M-2}
+            for m in range(1, self.M-1):
+                for i in range(self.D):
+                    part_model[a, m] = part_model[a, m] \
+                                       + J[i, a, m] \
+                                         * (diff[i, m-1] + diff[i, m])
+                part_model[a, m] \
+                  = Rf / self.M * (diff[a, m-1] - diff[a, m] \
+                                   - self.dt / 2 * part_model[a, m])
 
-        part3 = np.zeros((self.D,self.M))
-        part3[:, :-1] \
-          = - Rf / self.M * np.sum(kernel*(idenmat+self.dt/2*J[:, :, :-1]), 0)
+        gradX_A = np.zeros((self.D,self.M))
+        for a in range(self.D):
+            for m in range(self.M):
+                gradX_A[a, m] = scaling * (part_meas[a, m] + part_model[a, m])
 
-        return scaling * (part1 + part2 + part3)
+        return gradX_A
 
     def dAdpar(self, X, par, fX, Rf, scaling):
         """
@@ -159,9 +188,14 @@ class Action:
         """
         G = self.dyn.dfield_dpar(X, par)  # get the D-by-M-by-len(par) array
 
-        kernel = np.zeros((self.D,self.M-1,1))
-        kernel[:, :, 0] = X[:, 1:] - fX
-        kernel = kernel * self.dt / 2 * (G[:, :-1, :] + G[:, 1:, :])
+        gradpar_A = np.zeros(len(par))
+        for b in range(len(par)):
+            for i in range(self.D):
+                for m in range(self.M-1):
+                    gradpar_A[b] = gradpar_A[b] \
+                                   + (X[i, m+1] - fX[i, m]) * self.dt / 2 \
+                                     * (G[i, m, b] + G[i, m+1, b])
+            gradpar_A[b] = - scaling * Rf / self.M * gradpar_A[b]
 
-        return scaling * (- Rf / self.M * np.sum(np.sum(kernel, 0), 0))
+        return gradpar_A
 
