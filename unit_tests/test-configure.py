@@ -32,7 +32,7 @@ dt = 0.025
 
 """Specs for precision annealing and HMC."""
 # set the starting Rf value
-Rf0 = 1e6
+Rf0 = 1e6 * np.ones(D)
 # set alpha
 alpha = 1.0
 # set the total number of beta values
@@ -90,7 +90,7 @@ assert type(D) == type(np.int64(file['D']))
 assert type(M) == type(np.int64(file['M']))
 assert type(obsdim) == type(np.array(file['obsdim'], dtype='int64'))
 assert type(dt) == type(float(file['dt']))
-assert type(Rf0) == type(float(file['Rf0']))
+assert type(Rf0) == type(np.array(file['Rf0'], dtype='float64'))
 assert type(alpha) == type(float(file['alpha']))
 assert type(betamax) == type(np.int64(file['betamax']))
 assert type(n_iter) == type(np.array(file['n_iter'], dtype='int64'))

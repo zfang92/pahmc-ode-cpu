@@ -47,9 +47,9 @@ betamax = 1
 # set the number of HMC samples for each beta
 n_iter = 1000
 # set the HMC simulation stepsize for each beta
-epsilon = 1e-2
+epsilon = 1e-3
 # set the number of leapfrog steps for an HMC sample for each beta
-S = 150
+S = 100
 # set the HMC masses for each beta
 mass = (1e0, 1e0, 1e0)
 # set the HMC scaling parameter for each beta
@@ -121,11 +121,11 @@ t0 = time.perf_counter()
 
 job = Core(dyn, Y, dt, D, obsdim, M)
 
-cProfile.run('acceptance, action, action_meanpath, burn, ' \
-             + 'FE_meanpath, ME_meanpath, par_history, par_mean, ' \
-             + 'Rf, Rm, X_init, X_mean, Xfinal_history ' \
-             + '= job.pa(Rf0, alpha, betamax, n_iter, ' \
-             + 'epsilon, S, mass, scaling, soft_dynrange, par_start)', 
+cProfile.run('burn, Rm, Rf, eta_avg, acceptance, '\
+             +'action, action_meanpath, ME_meanpath, FE_meanpath, '\
+             +'X_init, X_gd, X_mean, par_history, par_mean, Xfinal_history '\
+             +'= job.pa(Rf0, alpha, betamax, n_iter, ' \
+             +'epsilon, S, mass, scaling, soft_dynrange, par_start)', \
              'profiling')
 
 print(f'Total time = {time.perf_counter()-t0:.2f} seconds.')
@@ -134,11 +134,50 @@ p = pstats.Stats('profiling')
 p.strip_dirs().sort_stats(pstats.SortKey.CUMULATIVE).print_stats(10)
 
 
-# plot action vs. iteration
+"""Plot action vs. iteration."""
 fig, ax = plt.subplots(figsize=(6,5))
 textblue = (49/255, 99/255, 206/255)
-ax.loglog(action[0, :], color=textblue, lw=1.5)
+ax.loglog(np.arange(1, n_iter+2), action[0, 1:], color=textblue, lw=1.5)
 ax.set_xlim(1, n_iter+1)
 ax.set_xlabel('iteration')
 ax.set_ylabel('action')
+
+
+"""Get an overview of performance."""
+# get the action object
+from pahmc_ode_cpu.utilities import Action
+A = Action(dyn, Y, dt, D, obsdim, M, Rm)
+
+# define function to extract information
+def overview(X, par, Rf, scaling=1.0):
+    fX = A.get_fX(X, par)
+
+    action = A.action(X, fX, Rf)
+    modelerr = np.sum(Rf/(2*A.M)*np.sum((X[:, 1:]-fX)**2, axis=1))
+
+    gradX = A.dAdX(X, par, fX, Rf, scaling)
+    gradpar = A.dAdpar(X, par, fX, Rf, scaling)
+
+    print(f'\n       action = {action},')
+    print(f'     modelerr = {modelerr},\n')
+    print(f'  max |gradX| = {np.max(np.abs(gradX))},')
+    print(f'  min |gradX| = {np.min(np.abs(gradX))},\n')
+    print(f'max |gradpar| = {np.max(np.abs(gradpar))},')
+    print(f'min |gradpar| = {np.min(np.abs(gradpar))}.')
+
+    return action, modelerr, gradX, gradpar
+
+# print results
+print('\n--------------------------------------------------')
+print('Before:')
+o1_action, o1_modelerr, o1_gradX, o1_gradpar \
+  = overview(X_init[0, :, :], par_history[0, 0, :], Rf[0])
+print('\n--------------------------------------------------')
+print('After exploration:')
+o2_action, o2_modelerr, o2_gradX, o2_gradpar \
+  = overview(X_gd[0, :, :], par_history[0, 1, :], Rf[0])
+print('\n--------------------------------------------------')
+print('After exploitation:')
+o3_action, o3_modelerr, o3_gradX, o3_gradpar \
+  = overview(X_mean[0, :, :], par_mean[0, :], Rf[0])
 

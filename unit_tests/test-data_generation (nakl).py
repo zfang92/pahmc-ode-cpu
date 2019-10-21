@@ -27,8 +27,7 @@ D = 4
 dt = 0.02
 length = int(1000/dt)
 noise = np.array([1, 0, 0, 0], dtype='float64')
-par_true = np.array([1, 
-                     120, 50, 20, -77, 0.3, -54.4, 
+par_true = np.array([120, 50, 20, -77, 0.3, -54.4, 
                      -40, 15, 0.1, 0.4, 
                      -60, -15, 1, 7, 
                      -55, 30, 1, 5], dtype='float64')

@@ -26,7 +26,7 @@ X = np.zeros((D,M))
 X[0, :] = np.random.uniform(-100.0, 50.0, M)
 X[1:D, :] = np.random.uniform(0.0, 1.0, (D-1,M))
 
-par = np.array([1.0, 120.0, 50.0, 20.0, -77.0, 0.3, -54.4, -40.0, 15, 
+par = np.array([120.0, 50.0, 20.0, -77.0, 0.3, -54.4, -40.0, 15, 
                 0.1, 0.4, -60.0, -15, 1.0, 7.0, -55.0, 30, 1.0, 5.0])
 
 stimulus = np.zeros((D,M))
@@ -45,24 +45,24 @@ vecfield = th.zeros(D,M)
 
 #=========================type your code below=========================
 vecfield[0, :] \
-  = stimulus[0, :] / par[0] \
-    + par[1] / par[0] * (X[1, :] ** 3) * X[2, :] * (par[2] - X[0, :]) \
-    + par[3] / par[0] * (X[3, :] ** 4) * (par[4] - X[0, :]) \
-    + par[5] / par[0] * (par[6] - X[0, :])
+  = stimulus[0, :] \
+    + par[0] * (X[1, :] ** 3) * X[2, :] * (par[1] - X[0, :]) \
+    + par[2] * (X[3, :] ** 4) * (par[3] - X[0, :]) \
+    + par[4] * (par[5] - X[0, :])
 
-tanh_m = th.tanh((X[0, :]-par[7])/par[8])
+tanh_m = th.tanh((X[0, :]-par[6])/par[7])
 eta_m = 1 / 2 * (1 + tanh_m)
-tau_m = par[9] + par[10] * (1 - tanh_m * tanh_m)
+tau_m = par[8] + par[9] * (1 - tanh_m * tanh_m)
 vecfield[1, :] = (eta_m - X[1, :]) / tau_m
 
-tanh_h = th.tanh((X[0, :]-par[11])/par[12])
+tanh_h = th.tanh((X[0, :]-par[10])/par[11])
 eta_h = 1 / 2 * (1 + tanh_h)
-tau_h = par[13] + par[14] * (1 - tanh_h * tanh_h)
+tau_h = par[12] + par[13] * (1 - tanh_h * tanh_h)
 vecfield[2, :] = (eta_h - X[2, :]) / tau_h
 
-tanh_n = th.tanh((X[0, :]-par[15])/par[16])
+tanh_n = th.tanh((X[0, :]-par[14])/par[15])
 eta_n = 1 / 2 * (1 + tanh_n)
-tau_n = par[17] + par[18] * (1 - tanh_n * tanh_n)
+tau_n = par[16] + par[17] * (1 - tanh_n * tanh_n)
 vecfield[3, :] = (eta_n - X[3, :]) / tau_n
 #===============================end here===============================
 
