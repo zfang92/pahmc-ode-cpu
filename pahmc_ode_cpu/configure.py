@@ -74,8 +74,13 @@ class Configure:
         assert type(self.dt) == float, \
             "'dt' must be a plain float."
 
-        assert type(self.Rf0) == float, \
-            "'Rf0' must be a plain float."
+        assert ((type(self.Rf0) == float \
+                 and np.shape(self.Rf0) == ()) \
+                or \
+                (type(self.Rf0) == np.ndarray \
+                 and np.shape(self.Rf0) == (self.D, ))), \
+            "'Rf0' must be either a plain float or a one-dimensional" \
+            + " array of length 'D' that contains only plain floats."
 
         assert type(self.alpha) == float, \
             "'alpha' must be a plain float."
@@ -180,7 +185,8 @@ class Configure:
 
         self.dt = float(self.dt)
 
-        self.Rf0 = float(self.Rf0)
+        self.Rf0 = np.ones(self.D, dtype='float64') \
+                   * np.array(self.Rf0, dtype='float64')
 
         self.alpha = float(self.alpha)
 

@@ -9,6 +9,8 @@ state and parameter estimations.
 """
 
 
+from pathlib import Path
+
 from numba import jitclass, types
 import numpy as np
 import time
@@ -25,19 +27,20 @@ class Core:
     the action, A(X), and its derivatives are in a different class.
     """
 
-    def __init__(self, dyn, Y, dt, D, obsdim, M, Rm=1.0):
+    def __init__(self, dyn, Y, dt, D, obsdim, M, tune_beta, Rm=1.0):
         """
         This class is to be instantiated in 'main.py'.
 
         Inputs
         ------
-           dyn: an object instantiated using 'def_dynamics.Dynamics'.
-             Y: the training data.
-            dt: discretization interval.
-             D: model degrees of freedom.
-        obsdim: 1d (shapeless) numpy array of integers.
-             M: number of time steps actually being used to train the model.
-            Rm: scalar.
+              dyn: an object instantiated using 'def_dynamics.Dynamics'.
+                Y: the training data.
+               dt: discretization interval.
+                D: model degrees of freedom.
+           obsdim: 1d (shapeless) numpy array of integers.
+                M: number of time steps actually being used to train the model.
+        tune_beta: the current beta value that is undergoing stepwise tuning.
+               Rm: scalar.
         """
         self.dyn = dyn
         self.Y = Y
@@ -45,6 +48,7 @@ class Core:
         self.D = D
         self.obsdim = obsdim
         self.M = M
+        self.tune_beta = tune_beta
         self.Rm = Rm
 
     def pa(self, Rf0, alpha, betamax, 
@@ -118,21 +122,31 @@ class Core:
         par_mean = np.zeros((betamax,len(par_start)))
         Xfinal_history = np.zeros((betamax,np.max(n_iter)+2,self.D))
 
-        # perform dynamical initialization
-        X_init[0, :, 0] = np.random.uniform(soft_dynrange[:, 0], 
-                                            soft_dynrange[:, 1], (self.D,))
-        X_init[0, self.obsdim, 0] = self.Y[:, 0]
-        for m in range(self.M-1):  # second-order Runge-Kutta
-            F = self.dt / 2 * self.dyn.field(X_init[0][:, [m]], par_start, 
-                                             self.dyn.stimuli[:, [m]])
-            X_init[0][:, [m+1]] \
-              = X_init[0][:, [m]] \
-                + self.dt * self.dyn.field(X_init[0][:, [m]]+F, par_start, 
-                                           self.dyn.stimuli[:, [m]])
-            X_init[0, self.obsdim, m+1] = self.Y[:, m+1]
+        # stepwise tuning=======================================================
+        if self.tune_beta == 0:
+            # dynamical initialization if tuning the first beta
+            X_init[0, :, 0] = np.random.uniform(soft_dynrange[:, 0], 
+                                                soft_dynrange[:, 1], (self.D,))
+            X_init[0, self.obsdim, 0] = self.Y[:, 0]
+            for m in range(self.M-1):  # second-order Runge-Kutta
+                F = self.dt / 2 * self.dyn.field(X_init[0][:, [m]], par_start, 
+                                                 self.dyn.stimuli[:, [m]])
+                X_init[0][:, [m+1]] \
+                  = X_init[0][:, [m]] \
+                    + self.dt * self.dyn.field(X_init[0][:, [m]]+F, par_start, 
+                                               self.dyn.stimuli[:, [m]])
+                X_init[0, self.obsdim, m+1] = self.Y[:, m+1]
 
-        # receive the very first parameters from the user
-        par_history[0, 0, :] = par_start
+            # receive the very first parameters from the user
+            par_history[0, 0, :] = par_start
+        else:
+            # extract results from previous beta
+            file = np.load(Path.cwd()/'user_results'\
+                           /f'tune_{self.dyn.name}_{self.tune_beta-1}.npz')
+            X_init = file['X_mean']
+            par_history[0, 0, :] = file['par_mean'][0, :]
+            file.close()
+        #=======================================================================
 
         # instantiate the MC class
         mc = MC(self.D, self.obsdim, unobsdim, self.M, 

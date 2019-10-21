@@ -28,7 +28,7 @@ class Test_utilities(unittest.TestCase):
           = np.array(list(set(np.random.randint(0, D, D//2))), dtype='int64')
         Y = np.random.uniform(-1.0, 1.0, (len(obsdim),M))
         Rm = np.random.rand()
-        Rf = np.random.rand() * 1e3
+        Rf = np.random.rand(D) * 1e3
         stimuli = np.random.uniform(-1.0, 1.0, (D,M))
 
         #=========================type your code below=========================
@@ -57,13 +57,8 @@ class Test_utilities(unittest.TestCase):
         self.assertIs(np.array_equal(fX, compare_fX), True)
 
         # test action()
-        compare_meas = np.zeros((len(obsdim),M))
-        for l in range(len(obsdim)):
-            compare_meas[l, :] = X[obsdim[l], :] - Y[l, :]
-        compare_meas = Rm / (2 * M) * np.sum(compare_meas**2)
-
-        compare_model = X[:, 1:] - fX
-        compare_model = Rf / (2 * M) * np.sum(compare_model**2)
+        compare_meas = Rm / (2 * M) * np.sum((X[obsdim, :]-Y)**2)
+        compare_model = np.sum(Rf/(2*M)*np.sum((X[:, 1:] - fX)**2, axis=1))
 
         compare = compare_meas + compare_model
         compare = np.around(compare, decimals=6)
@@ -82,7 +77,7 @@ class Test_utilities(unittest.TestCase):
           = np.array(list(set(np.random.randint(0, D, D//2))), dtype='int64')
         Y = np.random.uniform(-1.0, 1.0, (len(obsdim),M))
         Rm = np.random.rand()
-        Rf = np.random.rand() * 1e3
+        Rf = np.random.rand(D) * 1e3
         scaling = np.random.rand() * 1e3
         stimuli = np.random.uniform(-1.0, 1.0, (D,M))
 
@@ -112,19 +107,16 @@ class Test_utilities(unittest.TestCase):
         J = dyn.jacobian(X, par)
         
         part1 = np.zeros((D,M))
-        for l in range(len(obsdim)):
-            part1[obsdim[l], :] = X[obsdim[l], :] - Y[l, :]
-        part1 = Rm / M * part1
+        part1[obsdim, :] = Rm / M * (X[obsdim, :] - Y)
 
         kernel = np.zeros((D,1,M-1))
-        kernel[:, 0, :] = X[:, 1:] - fX
+        kernel[:, 0, :] = Rf[:, np.newaxis] / M * (X[:, 1:] - fX)
 
         part2 = np.zeros((D,M))
-        part2[:, 1:] = Rf / M * np.sum(kernel*(idenmat-dt/2*J[:, :, 1:]), 0)
+        part2[:, 1:] = np.sum(kernel*(idenmat-dt/2*J[:, :, 1:]), 0)
 
         part3 = np.zeros((D,M))
-        part3[:, :-1] \
-          = - Rf / M * np.sum(kernel*(idenmat+dt/2*J[:, :, :-1]), 0)
+        part3[:, :-1] = - np.sum(kernel*(idenmat+dt/2*J[:, :, :-1]), 0)
 
         compare = scaling * (part1 + part2 + part3)
         compare = np.around(compare, decimals=5)
@@ -145,7 +137,7 @@ class Test_utilities(unittest.TestCase):
           = np.array(list(set(np.random.randint(0, D, D//2))), dtype='int64')
         Y = np.random.uniform(-1.0, 1.0, (len(obsdim),M))
         Rm = np.random.rand()
-        Rf = np.random.rand() * 1e3
+        Rf = np.random.rand(D) * 1e3
         scaling = np.random.rand() * 1e3
         stimuli = np.random.uniform(-1.0, 1.0, (D,M))
 
@@ -172,10 +164,10 @@ class Test_utilities(unittest.TestCase):
         G = dyn.dfield_dpar(X, par)  # get the D-by-M-by-len(par) array
 
         kernel = np.zeros((D,M-1,1))
-        kernel[:, :, 0] = X[:, 1:] - fX
+        kernel[:, :, 0] = Rf[:, np.newaxis] / M * (X[:, 1:] - fX)
         kernel = kernel * dt / 2 * (G[:, :-1, :] + G[:, 1:, :])
 
-        compare = scaling * (- Rf / M * np.sum(np.sum(kernel, 0), 0))
+        compare = - scaling * np.sum(np.sum(kernel, 0), 0)
         compare = np.around(compare, decimals=6)
 
         dAdpar = A.dAdpar(X, par, fX, Rf, scaling)
