@@ -2,9 +2,10 @@
 """
 @author: Zheng Fang
 
-This is the main executable of pahmc_ode_cpu and should be the point of entry
-at which all the necessary information is provided. In particular, the user 
-is assumed to have the following:
+Alternative to 'main.py', if you would like to tune the hyperparameters for  
+each beta (generally a good practice), use this file as the main executable.
+
+The user is assumed to have the following:
     1) The dynamical system. If calling one of the built-in examples, the name
     of the dynamics must have a match in 'lib_dynamics.py'; if builing from 
     scratch, 'def_dynamics.py' must be ready at this point.
@@ -22,10 +23,10 @@ make it easier to preserve order when working on the above steps.
 """
 
 
-from datetime import date
 from pathlib import Path
 
 import numpy as np
+import matplotlib.pyplot as plt
 import time
 
 from pahmc_ode_cpu.configure import Configure
@@ -34,7 +35,21 @@ from pahmc_ode_cpu.__init__ import Fetch
 from pahmc_ode_cpu import lib_dynamics
 
 
-#=========================type your code below=========================
+#================type your code below (stepwise tuning)================
+"""Tunable hyperparameters."""
+# set the beta value to be tuned
+tune_beta = 0
+# set the number of HMC samples for each beta
+n_iter = 500
+# set the HMC simulation stepsize for each beta
+epsilon = 1e-3
+# set the number of leapfrog steps for an HMC sample for each beta
+S = 50
+# set the HMC masses for each beta
+mass = (1e0, 1e0, 1e0)
+# set the HMC scaling parameter for each beta
+scaling = 1e5
+#===================type your code below (only once)===================
 """A name for your dynamics."""
 # it will be used to try to find a match in the built-ins
 name = 'nakl'
@@ -49,52 +64,11 @@ obsdim = [1]
 # set the discretization interval
 dt = 0.02
 
-"""Specs for precision annealing and HMC."""
+"""The remaining hyperparameters."""
 # set the starting Rf value
 Rf0 = np.array([1.0e-1, 1.2e3, 1.6e3, 2.1e3])
 # set alpha
 alpha = 2.0
-# set the total number of beta values
-betamax = 20
-# set the number of HMC samples for each beta
-n_iter = np.concatenate((500*np.ones(19), 
-                         1000*np.ones(1)))
-# set the HMC simulation stepsize for each beta
-epsilon = np.concatenate((1e-3*np.ones(1), 
-                          1e-4*np.ones(6), 
-                          1e-5*np.ones(3), 
-                          1e-6*np.ones(2),
-                          1e-7*np.ones(4),
-                          1e-8*np.ones(3),
-                          1e-9*np.ones(1)))
-# set the number of leapfrog steps for an HMC sample for each beta
-S = np.concatenate((50*np.ones(1), 
-                    100*np.ones(9),
-                    200*np.ones(2),
-                    300*np.ones(2),
-                    500*np.ones(2),
-                    700*np.ones(1),
-                    800*np.ones(1),
-                    1000*np.ones(1),
-                    1500*np.ones(1)))
-# set the HMC masses for each beta
-mass = (1e0,1e0,1e0)
-# set the HMC scaling parameter for each beta
-scaling = np.concatenate((1e5*np.ones(1),
-                          1e6*np.ones(6),
-                          5e7*np.ones(1),
-                          3e7*np.ones(1),
-                          2e7*np.ones(1),
-                          1e9*np.ones(1),
-                          5e8*np.ones(1),
-                          2e10*np.ones(1),
-                          1e10*np.ones(1),
-                          6e9*np.ones(1),
-                          3e9*np.ones(1),
-                          1e11*np.ones(1),
-                          5e10*np.ones(1),
-                          3e10*np.ones(1),
-                          1.5e12*np.ones(1)))
 # set the "soft" dynamical range for initialization purpose
 soft_dynrange = np.array([[-120, 0], [0, 1], [0, 1], [0, 1]])
 # set an initial guess for the parameters
@@ -118,6 +92,11 @@ x0 = np.array([-70, 0.1, 0.9, 0.1])
 # set the switch for discarding the first half of the generated data
 burndata = False
 #===============================end here===============================
+
+
+"""Prepare current Rf and set betamax."""
+Rf0 = Rf0 * (alpha ** tune_beta)
+betamax = 1
 
 
 """Configure the inputs and the stimuli."""
@@ -147,7 +126,7 @@ except:
     import def_dynamics
     Fetch.Cls = def_dynamics.Dynamics
 
-from pahmc_ode_cpu.pahmc import Core
+from pahmc_ode_cpu.pahmc_tune import Core
 
 dyn = (Fetch.Cls)(name, stimuli)
 
@@ -165,7 +144,7 @@ dyn.stimuli = stimuli[:, 0:M]
 """Do the calculations."""
 t0 = time.perf_counter()
 
-job = Core(dyn, Y, dt, D, obsdim, M)
+job = Core(dyn, Y, dt, D, obsdim, M, tune_beta)
 
 burn, Rm, Rf, eta_avg, acceptance, \
 action, action_meanpath, ME_meanpath, FE_meanpath, \
@@ -177,12 +156,7 @@ print(f'Total time = {time.perf_counter()-t0:.2f} seconds.')
 
 
 """Save the results."""
-day = date.today().strftime('%Y-%m-%d')
-i = 1
-while (Path.cwd() / 'user_results' / f'{name}_{day}_{i}.npz').exists():
-    i = i + 1
-
-np.savez(Path.cwd()/'user_results'/f'{name}_{day}_{i}', 
+np.savez(Path.cwd()/'user_results'/f'tune_{name}_{tune_beta}', 
          name=name, 
          D=D, M=M, obsdim=obsdim, dt=dt, 
          Rf0=Rf0, alpha=alpha, betamax=betamax, 
@@ -205,4 +179,72 @@ np.savez(Path.cwd()/'user_results'/f'{name}_{day}_{i}',
          par_history=par_history, 
          par_mean=par_mean, 
          Xfinal_history=Xfinal_history)
+
+
+"""Plot action vs. iteration for current beta."""
+fig, ax = plt.subplots(figsize=(6,5))
+textblue = (49/255, 99/255, 206/255)
+ax.loglog(np.arange(1, n_iter+2), action[0, 1:], color=textblue, lw=1.5)
+ax.set_xlim(1, n_iter+1)
+ax.set_xlabel('iteration')
+ax.set_ylabel('action')
+
+
+"""Get an overview of performance."""
+# get the action object
+from pahmc_ode_cpu.utilities import Action
+A = Action(dyn, Y, dt, D, obsdim, M, Rm)
+
+# retrive the noiseless data (if doing twin experiment)
+noiselessfile_name = Path.cwd() / 'user_data' / f'{name}_noiseless.npz'
+if noiselessfile_name.exists():
+    noiselessfile = np.load(noiselessfile_name)
+    X_true = noiselessfile['data'][:, 0:M]
+    noiselessfile.close()
+
+# define function to extract information
+def overview(X, par, Rf, scaling=1.0):
+    fX = A.get_fX(X, par)
+
+    action = A.action(X, fX, Rf)
+    modelerr = np.sum(Rf/(2*A.M)*np.sum((X[:, 1:]-fX)**2, axis=1))
+
+    gradX = A.dAdX(X, par, fX, Rf, scaling)
+    gradpar = A.dAdpar(X, par, fX, Rf, scaling)
+
+    print(f'\n       action = {action},')
+    print(f'     modelerr = {modelerr},\n')
+    print(f'  max |gradX| = {np.max(np.abs(gradX))},')
+    print(f'  min |gradX| = {np.min(np.abs(gradX))},\n')
+    print(f'max |gradpar| = {np.max(np.abs(gradpar))},')
+    print(f'min |gradpar| = {np.min(np.abs(gradpar))}.')
+
+    return action, modelerr, gradX, gradpar
+
+# print results
+print('\n--------------------------------------------------')
+print('Before:')
+o1_action, o1_modelerr, o1_gradX, o1_gradpar \
+  = overview(X_init[0, :, :], par_history[0, 0, :], Rf[0])
+print('\n--------------------------------------------------')
+print('After exploration:')
+o2_action, o2_modelerr, o2_gradX, o2_gradpar \
+  = overview(X_gd[0, :, :], par_history[0, 1, :], Rf[0])
+print('\n--------------------------------------------------')
+print('After exploitation:')
+o3_action, o3_modelerr, o3_gradX, o3_gradpar \
+  = overview(X_mean[0, :, :], par_mean[0, :], Rf[0])
+
+print('\n--------------------------------------------------')
+print('L1 distances (traveled and remaining):')
+print('\n    from X_init to X_mean: '\
+      +f'{np.sum(np.abs(X_mean[0, :, :]-X_init[0, :, :]))},')
+if noiselessfile_name.exists():
+    print('    from X_mean to X_true: '\
+          +f'{np.sum(np.abs(X_true-X_mean[0, :, :]))},')
+print('\nfrom par_init to par_mean: '\
+      +f'{np.sum(np.abs(par_mean[0, :]-par_history[0, 0, :]))},')
+if noiselessfile_name.exists():
+    print('from par_mean to par_true: '\
+          +f'{np.sum(np.abs(par_true-par_mean[0, :]))}.')
 
