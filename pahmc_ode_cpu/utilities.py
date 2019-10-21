@@ -86,7 +86,7 @@ class Action:
          X: the state variable with shape (D, M).
         fX: the discretized vector field with shape (D, M-1). Each column 
             corresponds to the vector field at a given time.
-        Rf: numpy array of length betamax.
+        Rf: 1d numpy array of length D.
 
         Returns
         -------
@@ -99,10 +99,11 @@ class Action:
         measerr = self.Rm / (2 * self.M) * measerr
 
         modelerr = 0
-        for m in range(self.M-1):
-            for a in range(self.D):
-                modelerr = modelerr + (X[a, m+1] - fX[a, m]) ** 2
-        modelerr = Rf / (2 * self.M) * modelerr
+        for a in range(self.D):
+            ss_a = 0
+            for m in range(self.M-1):
+                ss_a = ss_a + (X[a, m+1] - fX[a, m]) ** 2
+            modelerr = modelerr + Rf[a] / (2 * self.M) * ss_a
 
         return measerr + modelerr
 
@@ -117,7 +118,7 @@ class Action:
             par: one-dimensional (shapeless) numpy array.
              fX: the discretized vector field with shape (D, M-1). Each column 
                  corresponds to the vector field at a given time.
-             Rf: numpy array of length betamax.
+             Rf: 1d numpy array of length D.
         scaling: 1d (shapeless) numpy array of floats, with length betamax.
 
         Returns
@@ -136,35 +137,37 @@ class Action:
         for m in range(self.M):
             for l in range(len(self.obsdim)):
                 part_meas[self.obsdim[l], m] \
-                  = self.Rm / self.M * (X[self.obsdim[l], m] - self.Y[l, m])
+                  = self.Rm * (X[self.obsdim[l], m] - self.Y[l, m])
 
         part_model = np.zeros((self.D,self.M))
         for a in range(self.D):
             # m == 0 corner case
             for i in range(self.D):
-                part_model[a, 0] = part_model[a, 0] + J[i, a, 0] * diff[i, 0]
+                part_model[a, 0] = part_model[a, 0] \
+                                   + Rf[i] * J[i, a, 0] * diff[i, 0]
             part_model[a, 0] \
-              = - Rf / self.M * (diff[a, 0] + self.dt / 2 * part_model[a, 0])
+              = - Rf[a] * diff[a, 0] - self.dt / 2 * part_model[a, 0]
             # m == M-1 corner case
             for i in range(self.D):
                 part_model[a, -1] = part_model[a, -1] \
-                                    + J[i, a, -1] * diff[i, -1]
+                                    + Rf[i] * J[i, a, -1] * diff[i, -1]
             part_model[a, -1] \
-              = Rf / self.M * (diff[a, -1] - self.dt / 2 * part_model[a, -1])
+              = Rf[a] * diff[a, -1] - self.dt / 2 * part_model[a, -1]
             # m == {1, ..., M-2}
             for m in range(1, self.M-1):
                 for i in range(self.D):
                     part_model[a, m] = part_model[a, m] \
-                                       + J[i, a, m] \
+                                       + Rf[i] * J[i, a, m] \
                                          * (diff[i, m-1] + diff[i, m])
                 part_model[a, m] \
-                  = Rf / self.M * (diff[a, m-1] - diff[a, m] \
-                                   - self.dt / 2 * part_model[a, m])
+                  = Rf[a] * (diff[a, m-1] - diff[a, m]) \
+                    - self.dt / 2 * part_model[a, m]
 
         gradX_A = np.zeros((self.D,self.M))
         for a in range(self.D):
             for m in range(self.M):
-                gradX_A[a, m] = scaling * (part_meas[a, m] + part_model[a, m])
+                gradX_A[a, m] \
+                  = scaling / self.M * (part_meas[a, m] + part_model[a, m])
 
         return gradX_A
 
@@ -179,7 +182,7 @@ class Action:
             par: one-dimensional (shapeless) numpy array.
              fX: the discretized vector field with shape (D, M-1). Each column 
                  corresponds to the vector field at a given time.
-             Rf: numpy array of length betamax.
+             Rf: 1d numpy array of length D.
         scaling: 1d (shapeless) numpy array of floats, with length betamax.
 
         Returns
@@ -191,11 +194,12 @@ class Action:
         gradpar_A = np.zeros(len(par))
         for b in range(len(par)):
             for i in range(self.D):
+                ss_i = 0
                 for m in range(self.M-1):
-                    gradpar_A[b] = gradpar_A[b] \
-                                   + (X[i, m+1] - fX[i, m]) * self.dt / 2 \
-                                     * (G[i, m, b] + G[i, m+1, b])
-            gradpar_A[b] = - scaling * Rf / self.M * gradpar_A[b]
+                    ss_i = ss_i + (X[i, m+1] - fX[i, m]) \
+                                  * (G[i, m, b] + G[i, m+1, b])
+                gradpar_A[b] = gradpar_A[b] + Rf[i] * ss_i
+            gradpar_A[b] = - scaling / self.M * self.dt / 2 * gradpar_A[b]
 
         return gradpar_A
 

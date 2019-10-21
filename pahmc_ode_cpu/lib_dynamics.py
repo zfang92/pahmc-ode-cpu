@@ -105,7 +105,6 @@ class Builtin_nakl:
     """
     This class implements the Hodgkin-Huxley model as described in Toth et al., 
     Biological Cybernetics (2011). It has 19 parameters as follows:
-    C; 
     g_Na, E_Na, g_K, E_K, g_L, E_L; 
     Vm, dVm, tau_m0, tau_m1; 
     Vh, dVh, tau_h0, tau_h1;
@@ -121,24 +120,24 @@ class Builtin_nakl:
         vecfield = np.zeros((D,M))
 
         vecfield[0, :] \
-          = stimulus[0, :] / par[0] \
-            + par[1] / par[0] * (X[1, :] ** 3) * X[2, :] * (par[2] - X[0, :]) \
-            + par[3] / par[0] * (X[3, :] ** 4) * (par[4] - X[0, :]) \
-            + par[5] / par[0] * (par[6] - X[0, :])
+          = stimulus[0, :] \
+            + par[0] * (X[1, :] ** 3) * X[2, :] * (par[1] - X[0, :]) \
+            + par[2] * (X[3, :] ** 4) * (par[3] - X[0, :]) \
+            + par[4] * (par[5] - X[0, :])
 
-        tanh_m = np.tanh((X[0, :]-par[7])/par[8])
+        tanh_m = np.tanh((X[0, :]-par[6])/par[7])
         eta_m = 1 / 2 * (1 + tanh_m)
-        tau_m = par[9] + par[10] * (1 - tanh_m * tanh_m)
+        tau_m = par[8] + par[9] * (1 - tanh_m * tanh_m)
         vecfield[1, :] = (eta_m - X[1, :]) / tau_m
 
-        tanh_h = np.tanh((X[0, :]-par[11])/par[12])
+        tanh_h = np.tanh((X[0, :]-par[10])/par[11])
         eta_h = 1 / 2 * (1 + tanh_h)
-        tau_h = par[13] + par[14] * (1 - tanh_h * tanh_h)
+        tau_h = par[12] + par[13] * (1 - tanh_h * tanh_h)
         vecfield[2, :] = (eta_h - X[2, :]) / tau_h
 
-        tanh_n = np.tanh((X[0, :]-par[15])/par[16])
+        tanh_n = np.tanh((X[0, :]-par[14])/par[15])
         eta_n = 1 / 2 * (1 + tanh_n)
-        tau_n = par[17] + par[18] * (1 - tanh_n * tanh_n)
+        tau_n = par[16] + par[17] * (1 - tanh_n * tanh_n)
         vecfield[3, :] = (eta_n - X[3, :]) / tau_n
         
         return vecfield
@@ -147,42 +146,40 @@ class Builtin_nakl:
         (D, M) = np.shape(X)
         jacob = np.zeros((D,D,M))
 
-        jacob[0, 0, :] \
-          = - par[1] / par[0] * (X[1, :] ** 3) * X[2, :] \
-            - par[3] / par[0] * (X[3, :] ** 4) - par[5] / par[0]
+        jacob[0, 0, :] = - par[0] * (X[1, :] ** 3) * X[2, :] \
+                         - par[2] * (X[3, :] ** 4) - par[4]
 
         jacob[0, 1, :] \
-          = 3 * par[1] / par[0] * (X[1, :] ** 2) * X[2, :] * (par[2] - X[0, :])
+          = 3 * par[0] * (X[1, :] ** 2) * X[2, :] * (par[1] - X[0, :])
 
-        jacob[0, 2, :] = par[1] / par[0] * (X[1, :] ** 3) * (par[2] - X[0, :])
+        jacob[0, 2, :] = par[0] * (X[1, :] ** 3) * (par[1] - X[0, :])
 
-        jacob[0, 3, :] \
-          = 4 * par[3] / par[0] * (X[3, :] ** 3) * (par[4] - X[0, :])
+        jacob[0, 3, :] = 4 * par[2] * (X[3, :] ** 3) * (par[3] - X[0, :])
 
-        tanh_m = np.tanh((X[0, :]-par[7])/par[8])
+        tanh_m = np.tanh((X[0, :]-par[6])/par[7])
         kernel_m = (1 - tanh_m * tanh_m)
         eta_m = 1 / 2 * (1 + tanh_m)
-        tau_m = par[9] + par[10] * kernel_m
-        eta_der_m = 1 / (2 * par[8]) * kernel_m
-        tau_der_m = - 2 * par[10] / par[8] * tanh_m * kernel_m
+        tau_m = par[8] + par[9] * kernel_m
+        eta_der_m = 1 / (2 * par[7]) * kernel_m
+        tau_der_m = - 2 * par[9] / par[7] * tanh_m * kernel_m
         jacob[1, 0, :] \
           = eta_der_m / tau_m + tau_der_m * (X[1, :] - eta_m) / (tau_m * tau_m)
 
-        tanh_h = np.tanh((X[0, :]-par[11])/par[12])
+        tanh_h = np.tanh((X[0, :]-par[10])/par[11])
         kernel_h = (1 - tanh_h * tanh_h)
         eta_h = 1 / 2 * (1 + tanh_h)
-        tau_h = par[13] + par[14] * kernel_h
-        eta_der_h = 1 / (2 * par[12]) * kernel_h
-        tau_der_h = - 2 * par[14] / par[12] * tanh_h * kernel_h
+        tau_h = par[12] + par[13] * kernel_h
+        eta_der_h = 1 / (2 * par[11]) * kernel_h
+        tau_der_h = - 2 * par[13] / par[11] * tanh_h * kernel_h
         jacob[2, 0, :] \
           = eta_der_h / tau_h + tau_der_h * (X[2, :] - eta_h) / (tau_h * tau_h)
 
-        tanh_n = np.tanh((X[0, :]-par[15])/par[16])
+        tanh_n = np.tanh((X[0, :]-par[14])/par[15])
         kernel_n = (1 - tanh_n * tanh_n)
         eta_n = 1 / 2 * (1 + tanh_n)
-        tau_n = par[17] + par[18] * kernel_n
-        eta_der_n = 1 / (2 * par[16]) * kernel_n
-        tau_der_n = - 2 * par[18] / par[16] * tanh_n * kernel_n
+        tau_n = par[16] + par[17] * kernel_n
+        eta_der_n = 1 / (2 * par[15]) * kernel_n
+        tau_der_n = - 2 * par[17] / par[15] * tanh_n * kernel_n
         jacob[3, 0, :] \
           = eta_der_n / tau_n + tau_der_n * (X[3, :] - eta_n) / (tau_n * tau_n)
 
@@ -198,79 +195,71 @@ class Builtin_nakl:
         (D, M) = np.shape(X)
         deriv_par = np.zeros((D,M,len(par)))
 
-        deriv_par[0, :, 0] \
-          = - 1 / (par[0] ** 2) \
-                * (self.stimuli[0, :] \
-                   + par[1] * (X[1, :] ** 3) * X[2, :] * (par[2] - X[0, :]) \
-                   + par[3] * (X[3, :] ** 4) * (par[4] - X[0, :]) \
-                   + par[5] * (par[6] - X[0, :]))
+        deriv_par[0, :, 0] = (X[1, :] ** 3) * X[2, :] * (par[1] - X[0, :])
 
-        deriv_par[0, :, 1] \
-          = 1 / par[0] * (X[1, :] ** 3) * X[2, :] * (par[2] - X[0, :])
+        deriv_par[0, :, 1] = par[0] * (X[1, :] ** 3) * X[2, :]
 
-        deriv_par[0, :, 2] = par[1] / par[0] * (X[1, :] ** 3) * X[2, :]
+        deriv_par[0, :, 2] = (X[3, :] ** 4) * (par[3] - X[0, :])
 
-        deriv_par[0, :, 3] = 1 / par[0] * (X[3, :] ** 4) * (par[4] - X[0, :])
+        deriv_par[0, :, 3] = par[2] * (X[3, :] ** 4)
 
-        deriv_par[0, :, 4] = par[3] / par[0] * (X[3, :] ** 4)
+        deriv_par[0, :, 4] = par[5] - X[0, :]
 
-        deriv_par[0, :, 5] = 1 / par[0] * (par[6] - X[0, :])
+        deriv_par[0, :, 5] = par[4]
 
-        deriv_par[0, :, 6] = par[5] / par[0]
-
-        tanh_m = np.tanh((X[0, :]-par[7])/par[8])
+        tanh_m = np.tanh((X[0, :]-par[6])/par[7])
         kernel_m = (1 - tanh_m * tanh_m)
         eta_m = 1 / 2 * (1 + tanh_m)
-        tau_m = par[9] + par[10] * kernel_m
+        tau_m = par[8] + par[9] * kernel_m
         common_m = (X[1, :] - eta_m) / (tau_m * tau_m)
-        eta_der_m = - 1 / (2 * par[8]) * kernel_m
-        tau_der_m = 2 * par[10] / par[8] * tanh_m * kernel_m
+        eta_der_m = - 1 / (2 * par[7]) * kernel_m
+        tau_der_m = 2 * par[9] / par[7] * tanh_m * kernel_m
+        deriv_par[1, :, 6] = eta_der_m / tau_m + tau_der_m * common_m
+
+        eta_der_m = - (X[0, :] - par[6]) / (2 * (par[7] ** 2)) * kernel_m
+        tau_der_m = 2 * par[9] * (X[0, :] - par[6]) / (par[7] ** 2) \
+                    * tanh_m * kernel_m
         deriv_par[1, :, 7] = eta_der_m / tau_m + tau_der_m * common_m
 
-        eta_der_m = - (X[0, :] - par[7]) / (2 * (par[8] ** 2)) * kernel_m
-        tau_der_m = 2 * par[10] * (X[0, :] - par[7]) / (par[8] ** 2) \
-                    * tanh_m * kernel_m
-        deriv_par[1, :, 8] = eta_der_m / tau_m + tau_der_m * common_m
+        deriv_par[1, :, 8] = common_m
 
-        deriv_par[1, :, 9] = common_m
+        deriv_par[1, :, 9] = kernel_m * common_m
 
-        deriv_par[1, :, 10] = kernel_m * common_m
-
-        tanh_h = np.tanh((X[0, :]-par[11])/par[12])
+        tanh_h = np.tanh((X[0, :]-par[10])/par[11])
         kernel_h = (1 - tanh_h * tanh_h)
         eta_h = 1 / 2 * (1 + tanh_h)
-        tau_h = par[13] + par[14] * kernel_h
+        tau_h = par[12] + par[13] * kernel_h
         common_h = (X[2, :] - eta_h) / (tau_h * tau_h)
-        eta_der_h = - 1 / (2 * par[12]) * kernel_h
-        tau_der_h = 2 * par[14] / par[12] * tanh_h * kernel_h
+        eta_der_h = - 1 / (2 * par[11]) * kernel_h
+        tau_der_h = 2 * par[13] / par[11] * tanh_h * kernel_h
+        deriv_par[2, :, 10] = eta_der_h / tau_h + tau_der_h * common_h
+
+        eta_der_h = - (X[0, :] - par[10]) / (2 * (par[11] ** 2)) * kernel_h
+        tau_der_h = 2 * par[13] * (X[0, :] - par[10]) / (par[11] ** 2) \
+                    * tanh_h * kernel_h
         deriv_par[2, :, 11] = eta_der_h / tau_h + tau_der_h * common_h
 
-        eta_der_h = - (X[0, :] - par[11]) / (2 * (par[12] ** 2)) * kernel_h
-        tau_der_h = 2 * par[14] * (X[0, :] - par[11]) / (par[12] ** 2) \
-                    * tanh_h * kernel_h
-        deriv_par[2, :, 12] = eta_der_h / tau_h + tau_der_h * common_h
+        deriv_par[2, :, 12] = common_h
 
-        deriv_par[2, :, 13] = common_h
+        deriv_par[2, :, 13] = kernel_h * common_h
 
-        deriv_par[2, :, 14] = kernel_h * common_h
-
-        tanh_n = np.tanh((X[0, :]-par[15])/par[16])
+        tanh_n = np.tanh((X[0, :]-par[14])/par[15])
         kernel_n = (1 - tanh_n * tanh_n)
         eta_n = 1 / 2 * (1 + tanh_n)
-        tau_n = par[17] + par[18] * kernel_n
+        tau_n = par[16] + par[17] * kernel_n
         common_n = (X[3, :] - eta_n) / (tau_n * tau_n)
-        eta_der_n = - 1 / (2 * par[16]) * kernel_n
-        tau_der_n = 2 * par[18] / par[16] * tanh_n * kernel_n
+        eta_der_n = - 1 / (2 * par[15]) * kernel_n
+        tau_der_n = 2 * par[17] / par[15] * tanh_n * kernel_n
+        deriv_par[3, :, 14] = eta_der_n / tau_n + tau_der_n * common_n
+
+        eta_der_n = - (X[0, :] - par[14]) / (2 * (par[15] ** 2)) * kernel_n
+        tau_der_n = 2 * par[17] * (X[0, :] - par[14]) / (par[15] ** 2) \
+                    * tanh_n * kernel_n
         deriv_par[3, :, 15] = eta_der_n / tau_n + tau_der_n * common_n
 
-        eta_der_n = - (X[0, :] - par[15]) / (2 * (par[16] ** 2)) * kernel_n
-        tau_der_n = 2 * par[18] * (X[0, :] - par[15]) / (par[16] ** 2) \
-                    * tanh_n * kernel_n
-        deriv_par[3, :, 16] = eta_der_n / tau_n + tau_der_n * common_n
+        deriv_par[3, :, 16] = common_n
 
-        deriv_par[3, :, 17] = common_n
-
-        deriv_par[3, :, 18] = kernel_n * common_n
+        deriv_par[3, :, 17] = kernel_n * common_n
         
         return deriv_par
 
