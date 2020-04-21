@@ -5,7 +5,7 @@ A user-manual is forthcoming. Meanwhile, the docstrings within the code should b
 Requirements:
 1) Python 3.7+;
 2) Numpy 1.16+;
-3) Numba 0.46+;
+3) Numba 0.49+;
 4) Matplotlib 3.1+;
 5) (Optional) PyTorch 1.2+.
 
